@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Bank - TopperWay</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary-color: #2563EB;
+            --secondary-color: #F4B400;
+            --text-dark: #0F172A;
+            --text-light: #475569;
+            --bg-light: #F8FAFC;
+            --white: #FFFFFF;
+            --border-color: #E2E8F0;
+            --high: #DC2626;
+            --important: #D97706;
+            --practice: #059669;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', 'Noto Sans Devanagari', sans-serif; }
+        body { background-color: var(--bg-light); color: var(--text-dark); line-height: 1.6; }
+        a { text-decoration: none; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+
+        header { background: var(--white); box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05); position: sticky; top: 0; z-index: 1000; }
+        .nav-container { display: flex; justify-content: space-between; align-items: center; height: 75px; }
+        .logo { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .logo-text-dark { color: var(--text-dark); }
+        .logo-text-blue { color: var(--primary-color); }
+        .btn-primary { background: var(--primary-color); color: var(--white); padding: 8px 18px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; font-size: 14px; }
+        .btn-outline { background: var(--white); color: var(--primary-color); padding: 8px 18px; border-radius: 8px; font-weight: 600; border: 1.5px solid var(--primary-color); cursor: pointer; font-size: 14px; }
+
+        .page-header { background: linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 100%); padding: 44px 0 30px; text-align: center; border-bottom: 1px solid var(--border-color); }
+        .page-header h1 { font-size: 32px; margin-bottom: 8px; }
+        .page-header p { color: var(--text-light); }
+
+        .filters-bar {
+            background: var(--white);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px;
+            margin: 30px 0 20px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            box-shadow: 0 4px 6px -1px rgba(15,23,42,.04);
+        }
+        .filters-bar .field label { display: block; font-size: 12.5px; color: var(--text-light); margin-bottom: 5px; font-weight: 600; }
+        .filters-bar select {
+            width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);
+            font-size: 14px; background: var(--white); color: var(--text-dark);
+        }
+
+        .results-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-size: 14px; color: var(--text-light); }
+
+        .q-card {
+            background: var(--white);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 4px rgba(15,23,42,.03);
+        }
+        .q-meta { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+        .q-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: .03em; }
+        .q-badge.type { background: #EFF6FF; color: var(--primary-color); }
+        .q-badge.high { background: #FEF2F2; color: var(--high); }
+        .q-badge.important { background: #FFFBEB; color: var(--important); }
+        .q-badge.practice { background: #ECFDF5; color: var(--practice); }
+        .q-text { font-weight: 600; margin-bottom: 10px; font-size: 15.5px; }
+        .q-options { list-style: none; margin-bottom: 8px; }
+        .q-options li { padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; font-size: 14px; background: var(--bg-light); }
+        .q-options li.correct { background: #ECFDF5; color: var(--practice); font-weight: 600; }
+        .q-toggle { color: var(--primary-color); font-size: 13px; font-weight: 600; cursor: pointer; background: none; border: none; padding: 0; margin-top: 4px; }
+        .q-answer { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color); font-size: 14px; color: var(--text-light); display: none; }
+
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 14px; margin: 30px 0 50px; }
+        .pagination button {
+            padding: 9px 18px; border-radius: 8px; border: 1px solid var(--border-color);
+            background: var(--white); cursor: pointer; font-weight: 600; font-size: 14px;
+        }
+        .pagination button:disabled { opacity: .4; cursor: not-allowed; }
+        .pagination span { font-size: 14px; color: var(--text-light); }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); }
+
+        footer { background: var(--text-dark); color: var(--white); padding: 40px 0 20px; margin-top: 60px; text-align: center; }
+        footer a { color: #94A3B8; margin: 0 10px; }
+
+        @media (max-width: 720px) {
+            .filters-bar { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+    <link rel="icon" type="image/png" href="logo2.png">
+</head>
+<body>
+    <header>
+        <div class="container nav-container">
+            <a href="index.html" class="logo">
+                <span class="logo-text-dark">Topper</span><span class="logo-text-blue">Way</span>
+            </a>
+            <a href="index.html" class="btn-primary">Home</a>
+        </div>
+    </header>
+
+    <section class="page-header">
+        <div class="container">
+            <h1>📚 Question Bank</h1>
+            <p>Subject और Chapter चुनें, फिर सारे questions Priority के साथ देखें</p>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="filters-bar">
+            <div class="field">
+                <label>विषय (Subject)</label>
+                <select id="subjectFilter">
+                    <option value="">-- चुनें --</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Chapter</label>
+                <select id="chapterFilter">
+                    <option value="">सभी Chapters</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Type</label>
+                <select id="typeFilter">
+                    <option value="">सभी</option>
+                    <option value="mcq">MCQ</option>
+                    <option value="short">Short Answer</option>
+                    <option value="long">Long Answer</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Priority</label>
+                <select id="priorityFilter">
+                    <option value="">सभी</option>
+                    <option value="high">High</option>
+                    <option value="important">Important</option>
+                    <option value="practice">Practice</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="results-meta">
+            <span id="resultsCount">विषय चुनकर शुरू करें</span>
+        </div>
+
+        <div id="questionsList"></div>
+
+        <div class="pagination" id="paginationBar" style="display:none;">
+            <button id="prevPageBtn">← पिछला</button>
+            <span id="pageLabel">Page 1</span>
+            <button id="nextPageBtn">अगला →</button>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 TopperWay. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        var SUPABASE_URL = "https://tphrdecdljxaqogocuxw.supabase.co";
+        var SUPABASE_ANON_KEY = "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy";
+        var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        var PAGE_SIZE = 20;
+        var currentPage = 0;
+        var totalCount = 0;
+
+        var subjectFilter = document.getElementById("subjectFilter");
+        var chapterFilter = document.getElementById("chapterFilter");
+        var typeFilter = document.getElementById("typeFilter");
+        var priorityFilter = document.getElementById("priorityFilter");
+        var questionsList = document.getElementById("questionsList");
+        var resultsCount = document.getElementById("resultsCount");
+        var paginationBar = document.getElementById("paginationBar");
+        var pageLabel = document.getElementById("pageLabel");
+        var prevBtn = document.getElementById("prevPageBtn");
+        var nextBtn = document.getElementById("nextPageBtn");
+
+        function priorityBadgeClass(p) {
+            if (p === "high") return "high";
+            if (p === "important") return "important";
+            return "practice";
+        }
+        function priorityLabel(p) {
+            if (p === "high") return "High Priority";
+            if (p === "important") return "Important";
+            return "Practice";
+        }
+        function typeLabel(t) {
+            if (t === "mcq") return "MCQ";
+            if (t === "short") return "Short Answer";
+            return "Long Answer";
+        }
+
+        async function loadSubjects() {
+            var res = await supabase.from("subjects").select("id, name, slug").order("id");
+            (res.data || []).forEach(function (s) {
+                var opt = document.createElement("option");
+                opt.value = s.id;
+                opt.textContent = s.name;
+                subjectFilter.appendChild(opt);
+            });
+        }
+
+        async function loadChapters(subjectId) {
+            chapterFilter.innerHTML = '<option value="">सभी Chapters</option>';
+            if (!subjectId) return;
+            var res = await supabase.from("chapters").select("id, name, chapter_number")
+                .eq("subject_id", subjectId).order("chapter_number");
+            (res.data || []).forEach(function (c) {
+                var opt = document.createElement("option");
+                opt.value = c.id;
+                opt.textContent = c.name;
+                chapterFilter.appendChild(opt);
+            });
+        }
+
+        function renderQuestion(q) {
+            var div = document.createElement("div");
+            div.className = "q-card";
+
+            var badgesHtml = '<span class="q-badge type">' + typeLabel(q.type) + '</span>' +
+                '<span class="q-badge ' + priorityBadgeClass(q.priority) + '">' + priorityLabel(q.priority) + '</span>';
+
+            var optionsHtml = "";
+            if (q.type === "mcq" && q.options) {
+                optionsHtml = '<ul class="q-options">';
+                q.options.forEach(function (opt) {
+                    var isCorrect = opt === q.correct_answer;
+                    optionsHtml += '<li class="' + (isCorrect ? "correct" : "") + '">' + opt + (isCorrect ? " ✓" : "") + '</li>';
+                });
+                optionsHtml += '</ul>';
+            }
+
+            var answerHtml = "";
+            var toggleHtml = "";
+            if (q.type !== "mcq") {
+                answerHtml = '<div class="q-answer">' + (q.correct_answer || "").replace(/\n/g, "<br>") + '</div>';
+                toggleHtml = '<button class="q-toggle">उत्तर दिखाएं</button>';
+            }
+
+            div.innerHTML =
+                '<div class="q-meta">' + badgesHtml + '</div>' +
+                '<div class="q-text">' + q.question_text + '</div>' +
+                optionsHtml + toggleHtml + answerHtml;
+
+            var toggleBtn = div.querySelector(".q-toggle");
+            if (toggleBtn) {
+                toggleBtn.addEventListener("click", function () {
+                    var ans = div.querySelector(".q-answer");
+                    var showing = ans.style.display === "block";
+                    ans.style.display = showing ? "none" : "block";
+                    toggleBtn.textContent = showing ? "उत्तर दिखाएं" : "उत्तर छुपाएं";
+                });
+            }
+
+            return div;
+        }
+
+        async function loadQuestions() {
+            var subjectId = subjectFilter.value;
+            if (!subjectId) {
+                questionsList.innerHTML = '<div class="empty-state">ऊपर से विषय चुनें ताकि questions दिखें।</div>';
+                resultsCount.textContent = "विषय चुनकर शुरू करें";
+                paginationBar.style.display = "none";
+                return;
+            }
+
+            questionsList.innerHTML = '<div class="empty-state">लोड हो रहा है...</div>';
+
+            var query = supabase.from("questions").select("*", { count: "exact" }).eq("subject_id", subjectId);
+            if (chapterFilter.value) query = query.eq("chapter_id", chapterFilter.value);
+            if (typeFilter.value) query = query.eq("type", typeFilter.value);
+            if (priorityFilter.value) query = query.eq("priority", priorityFilter.value);
+
+            var from = currentPage * PAGE_SIZE;
+            var to = from + PAGE_SIZE - 1;
+            query = query.range(from, to);
+
+            var res = await query;
+            if (res.error) {
+                questionsList.innerHTML = '<div class="empty-state">गड़बड़ हुई: ' + res.error.message + '</div>';
+                return;
+            }
+
+            totalCount = res.count || 0;
+            var data = res.data || [];
+
+            if (data.length === 0) {
+                questionsList.innerHTML = '<div class="empty-state">इस filter के लिए कोई question नहीं मिला।</div>';
+                resultsCount.textContent = "0 results";
+                paginationBar.style.display = "none";
+                return;
+            }
+
+            questionsList.innerHTML = "";
+            data.forEach(function (q) {
+                questionsList.appendChild(renderQuestion(q));
+            });
+
+            resultsCount.textContent = totalCount + " questions मिले";
+
+            var totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+            pageLabel.textContent = "Page " + (currentPage + 1) + " / " + totalPages;
+            prevBtn.disabled = currentPage === 0;
+            nextBtn.disabled = currentPage >= totalPages - 1;
+            paginationBar.style.display = "flex";
+
+            window.scrollTo({ top: document.querySelector(".filters-bar").offsetTop - 20, behavior: "smooth" });
+        }
+
+        subjectFilter.addEventListener("change", function () {
+            currentPage = 0;
+            loadChapters(subjectFilter.value);
+            loadQuestions();
+        });
+        chapterFilter.addEventListener("change", function () { currentPage = 0; loadQuestions(); });
+        typeFilter.addEventListener("change", function () { currentPage = 0; loadQuestions(); });
+        priorityFilter.addEventListener("change", function () { currentPage = 0; loadQuestions(); });
+
+        prevBtn.addEventListener("click", function () {
+            if (currentPage > 0) { currentPage--; loadQuestions(); }
+        });
+        nextBtn.addEventListener("click", function () {
+            currentPage++; loadQuestions();
+        });
+
+        async function init() {
+            await loadSubjects();
+            var params = new URLSearchParams(window.location.search);
+            var subjectId = params.get("subject");
+            var chapterId = params.get("chapter");
+            if (subjectId) {
+                subjectFilter.value = subjectId;
+                await loadChapters(subjectId);
+                if (chapterId) chapterFilter.value = chapterId;
+                loadQuestions();
+            }
+        }
+        init();
+    </script>
+</body>
+</html>

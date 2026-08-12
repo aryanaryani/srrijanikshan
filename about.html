@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us - TopperWay</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2563EB;
+            --secondary-color: #F4B400;
+            --text-dark: #0F172A;
+            --text-light: #475569;
+            --bg-light: #F8FAFC;
+            --white: #FFFFFF;
+            --border-color: #E2E8F0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', 'Noto Sans Devanagari', sans-serif; }
+        body { background-color: var(--bg-light); color: var(--text-dark); line-height: 1.6; }
+        a { text-decoration: none; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+        
+        header { background: var(--white); box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05); position: sticky; top: 0; z-index: 1000; }
+        .nav-container { display: flex; justify-content: space-between; align-items: center; height: 75px; }
+        .logo { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .logo-text-dark { color: var(--text-dark); }
+        .logo-text-blue { color: var(--primary-color); }
+        .btn-primary { background: var(--primary-color); color: var(--white); padding: 8px 18px; border-radius: 8px; font-weight: 600; }
+
+        .page-header { background: linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 100%); padding: 60px 0 40px; text-align: center; border-bottom: 1px solid var(--border-color); }
+        .page-header h1 { font-size: 36px; margin-bottom: 10px; }
+        
+        .content-body { background: var(--white); padding: 40px; border-radius: 16px; margin: 40px 0; border: 1px solid var(--border-color); box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05); }
+        .content-body h2 { color: var(--primary-color); margin: 25px 0 10px; font-size: 22px; }
+        .content-body p { color: var(--text-light); margin-bottom: 15px; font-size: 16px; }
+
+        footer { background: var(--text-dark); color: var(--white); padding: 40px 0 20px; margin-top: 60px; text-align: center; }
+        footer a { color: #94A3B8; margin: 0 10px; }
+    </style>
+    <link rel="icon" type="image/png" href="logo2.png">
+</head>
+<body>
+    <header>
+        <div class="container nav-container">
+            <a href="index.html" class="logo">
+                <span class="logo-text-dark">Topper</span><span class="logo-text-blue">Way</span>
+            </a>
+            <a href="index.html" class="btn-primary">Home</a>
+        </div>
+    </header>
+
+    <section class="page-header">
+        <div class="container">
+            <h1>हमारे बारे में (About TopperWay)</h1>
+            <p>Smart Preparation for Bihar Board Class 10 Students</p>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="content-body">
+            <h2>हमारा मिशन (Our Mission)</h2>
+            <p>TopperWay का मुख्य उद्देश्य Bihar Board Class 10 के विद्यार्थियों को बिना वजह सैकड़ों किताबें, गाइड और गेस पेपर खरीदे बिना स्मार्ट तरीके से परीक्षा की तैयारी कराना है। हम "पूरी किताब मत पढ़ो, पहले जानो कि क्या पढ़ना सबसे जरूरी है" के सिद्धांत पर काम करते हैं।</p>
+
+            <h2>AI-Powered स्मार्ट एनालिसिस</h2>
+            <p>हमारा प्लेटफॉर्म बिहार बोर्ड के पिछले 10 से 15 वर्षों के प्रश्न पत्रों का गहन विश्लेषण करता है। AI तकनीक की मदद से हम टॉपिक रिपीटेशन, क्वेश्चन फ्रीक्वेंसी और मार्क्स डिस्ट्रीब्यूशन के आधार पर आपको High-Priority टोपिक्स और प्रश्नों की प्राथमिकता (Tiers 1 to 4) दिखाते हैं।</p>
+
+            <h2>हम अलग क्यों हैं?</h2>
+            <p>हम कभी भी परीक्षा में 100% प्रश्न आने का झूठा दावा नहीं करते। इसके बजाय, हम डेटा और हिस्टोरिकल ट्रेंड्स के आधार पर एक व्यवस्थित प्राथमिकता प्रणाली और परीक्षा से ठीक 1 दिन पहले रिवीज़न करने के लिए 1-Day Revision Mode प्रदान करते हैं।</p>
+            <div style="display:flex; justify-content:center; align-items:center; gap:24px; margin-top:35px; padding-top:30px; border-top:1px solid var(--border-color); flex-wrap:wrap;">
+                <img src="founder.png" alt="Founder"
+                     style="width:300px; height:350px; border-radius:13.5%; object-fit:cover; padding: 3px; background: linear-gradient(45deg, #bae70e, #08fded, #0072ed); flex-shrink:0;">
+                <div>
+                    <h2 style="margin-top:0; margin-bottom:4px; text-align: center;">Aryani</h2>
+                    <p style="color:var(--secondary-color); font-weight:600; margin-bottom:8px; text-align: center; font-size:15px;">Founder & Developer, TopperWay</p>
+                    <p style="margin-bottom:0;">बिहार से हूँ और खुद AI की मदद से coding सीखकर ये platform बनाया है, ताकि Bihar Board के students को कम समय में सही चीज़ें पढ़ने में मदद मिल सके।</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 TopperWay. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
