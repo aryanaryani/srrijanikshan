@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Study Library - TopperWay</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary-color: #2563EB;
+            --secondary-color: #F4B400;
+            --text-dark: #0F172A;
+            --text-light: #475569;
+            --bg-light: #F8FAFC;
+            --white: #FFFFFF;
+            --border-color: #E2E8F0;
+            --practice: #059669;
+            --danger: #DC2626;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', 'Noto Sans Devanagari', sans-serif; }
+        body { background-color: var(--bg-light); color: var(--text-dark); line-height: 1.6; }
+        a { text-decoration: none; }
+        .container { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+
+        header { background: var(--white); box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05); position: sticky; top: 0; z-index: 1000; }
+        .nav-container { display: flex; justify-content: space-between; align-items: center; height: 75px; }
+        .logo { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .logo-text-dark { color: var(--text-dark); }
+        .logo-text-blue { color: var(--primary-color); }
+        .btn-primary { background: var(--primary-color); color: var(--white); padding: 8px 18px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; font-size: 14px; }
+
+        .page-header { background: linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 100%); padding: 44px 0 30px; text-align: center; border-bottom: 1px solid var(--border-color); }
+        .page-header h1 { font-size: 30px; margin-bottom: 8px; }
+        .page-header p { color: var(--text-light); }
+
+        .tabs { display: flex; gap: 8px; margin: 30px 0 20px; overflow-x: auto; }
+        .tab-btn {
+            padding: 10px 18px; border-radius: 20px; border: 1px solid var(--border-color);
+            background: var(--white); cursor: pointer; font-size: 13.5px; font-weight: 600;
+            white-space: nowrap; color: var(--text-light);
+        }
+        .tab-btn.active { background: var(--primary-color); color: var(--white); border-color: var(--primary-color); }
+
+        .item-card {
+            background: var(--white); border: 1px solid var(--border-color); border-radius: 12px;
+            padding: 18px 20px; margin-bottom: 12px; position: relative;
+        }
+        .item-title { font-weight: 600; margin-bottom: 6px; padding-right: 30px; }
+        .item-meta { font-size: 12px; color: var(--text-light); margin-bottom: 10px; }
+        .delete-btn {
+            position: absolute; top: 14px; right: 16px; background: none; border: none;
+            color: var(--danger); cursor: pointer; font-size: 16px;
+        }
+        .q-options { list-style: none; margin-top: 6px; }
+        .q-options li { padding: 5px 10px; border-radius: 6px; margin-bottom: 3px; font-size: 13.5px; background: var(--bg-light); }
+        .q-options li.correct { background: #ECFDF5; color: var(--practice); font-weight: 600; }
+        .q-options li.wrong-pick { background: #FEF2F2; color: var(--danger); font-weight: 600; }
+
+        .empty-state { text-align: center; padding: 50px 20px; color: var(--text-light); }
+
+        footer { background: var(--text-dark); color: var(--white); padding: 30px 0; text-align: center; margin-top: 60px; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container nav-container">
+            <a href="index.html" class="logo">
+                <span class="logo-text-dark">Topper</span><span class="logo-text-blue">Way</span>
+            </a>
+            <a href="index.html" class="btn-primary">Home</a>
+        </div>
+    </header>
+
+    <section class="page-header">
+        <div class="container">
+            <h1>📚 My Study Library</h1>
+            <p>आपके saved notes, questions और गलत हुए questions एक जगह</p>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="question">🔖 Saved Questions</button>
+            <button class="tab-btn" data-tab="note">📝 Notes</button>
+            <button class="tab-btn" data-tab="scan">📷 Scans</button>
+            <button class="tab-btn" data-tab="wrong">❌ Wrong Questions</button>
+        </div>
+
+        <div id="libraryContent">
+            <div class="empty-state">लॉगिन चेक हो रहा है...</div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 TopperWay. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        var supabase = window.supabase.createClient(
+            "https://tphrdecdljxaqogocuxw.supabase.co",
+            "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy"
+        );
+
+        var content = document.getElementById("libraryContent");
+        var currentUserId = null;
+        var activeTab = "question";
+
+        document.querySelectorAll(".tab-btn").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                document.querySelectorAll(".tab-btn").forEach(function (b) { b.classList.remove("active"); });
+                btn.classList.add("active");
+                activeTab = btn.dataset.tab;
+                loadTab(activeTab);
+            });
+        });
+
+        async function init() {
+            var session = await supabase.auth.getSession();
+            if (!session.data.session) {
+                content.innerHTML = '<div class="empty-state">Library देखने के लिए पहले <a href="index.html" style="color:var(--primary-color);font-weight:600;">Home page</a> पर जाकर लॉगिन करें।</div>';
+                return;
+            }
+            currentUserId = session.data.session.user.id;
+            loadTab("question");
+        }
+
+        async function loadTab(tab) {
+            content.innerHTML = '<div class="empty-state">⏳ लोड हो रहा है...</div>';
+
+            if (tab === "wrong") {
+                await loadWrongQuestions();
+                return;
+            }
+
+            var res = await supabase.from("library_items")
+                .select("*")
+                .eq("user_id", currentUserId)
+                .eq("item_type", tab)
+                .order("created_at", { ascending: false });
+
+            if (res.error || !res.data || res.data.length === 0) {
+                var labels = { question: "कोई question save नहीं किया अभी तक। Question Bank page से 🔖 Save दबाएं।", note: "कोई notes save नहीं किए अभी तक।", scan: "कोई scan save नहीं किया अभी तक।" };
+                content.innerHTML = '<div class="empty-state">' + (labels[tab] || "कुछ नहीं मिला") + '</div>';
+                return;
+            }
+
+            var html = "";
+            res.data.forEach(function (item) {
+                html += renderItemCard(item);
+            });
+            content.innerHTML = html;
+
+            document.querySelectorAll(".delete-btn").forEach(function (btn) {
+                btn.addEventListener("click", async function () {
+                    if (!confirm("Delete कर दें?")) return;
+                    await supabase.from("library_items").delete().eq("id", btn.dataset.id);
+                    loadTab(activeTab);
+                });
+            });
+        }
+
+        function renderItemCard(item) {
+            var d = new Date(item.created_at);
+            var dateStr = d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+            var html = '<div class="item-card">';
+            html += '<button class="delete-btn" data-id="' + item.id + '">🗑️</button>';
+            html += '<div class="item-meta">' + dateStr + '</div>';
+
+            if (item.item_type === "question") {
+                var q = item.content;
+                html += '<p class="item-title">' + q.question_text + '</p>';
+                if (q.options) {
+                    html += '<ul class="q-options">';
+                    q.options.forEach(function (opt) {
+                        html += '<li class="' + (opt === q.correct_answer ? "correct" : "") + '">' + opt + (opt === q.correct_answer ? " ✓" : "") + '</li>';
+                    });
+                    html += '</ul>';
+                } else if (q.correct_answer) {
+                    html += '<p style="font-size:13.5px;color:var(--text-light);">उत्तर: ' + q.correct_answer + '</p>';
+                }
+            } else {
+                html += '<p class="item-title">' + (item.title || "Untitled") + '</p>';
+            }
+            html += '</div>';
+            return html;
+        }
+
+        async function loadWrongQuestions() {
+            var attemptsRes = await supabase.from("test_attempts").select("answers").eq("user_id", currentUserId);
+            if (attemptsRes.error || !attemptsRes.data || attemptsRes.data.length === 0) {
+                content.innerHTML = '<div class="empty-state">अभी तक कोई Mock Test नहीं दिया।</div>';
+                return;
+            }
+
+            var wrongAnswersMap = {};
+            attemptsRes.data.forEach(function (attempt) {
+                var answers = attempt.answers || {};
+                Object.keys(answers).forEach(function (qId) {
+                    wrongAnswersMap[qId] = answers[qId];
+                });
+            });
+
+            var questionIds = Object.keys(wrongAnswersMap);
+            if (questionIds.length === 0) {
+                content.innerHTML = '<div class="empty-state">कोई attempted questions नहीं मिले।</div>';
+                return;
+            }
+
+            var qRes = await supabase.from("questions").select("*").in("id", questionIds);
+            var wrongOnes = (qRes.data || []).filter(function (q) {
+                return wrongAnswersMap[q.id] !== q.correct_answer;
+            });
+
+            if (wrongOnes.length === 0) {
+                content.innerHTML = '<div class="empty-state">🎉 बधाई हो! अभी तक कोई गलत जवाब नहीं है।</div>';
+                return;
+            }
+
+            var html = "";
+            wrongOnes.forEach(function (q) {
+                html += '<div class="item-card">';
+                html += '<p class="item-title">' + q.question_text + '</p>';
+                if (q.options) {
+                    html += '<ul class="q-options">';
+                    q.options.forEach(function (opt) {
+                        var cls = "";
+                        if (opt === q.correct_answer) cls = "correct";
+                        else if (opt === wrongAnswersMap[q.id]) cls = "wrong-pick";
+                        html += '<li class="' + cls + '">' + opt +
+                            (opt === q.correct_answer ? " ✓" : "") +
+                            (opt === wrongAnswersMap[q.id] && opt !== q.correct_answer ? " ✗ (आपका जवाब)" : "") +
+                            '</li>';
+                    });
+                    html += '</ul>';
+                } else {
+                    html += '<p style="font-size:13.5px;color:var(--text-light);">सही उत्तर: ' + q.correct_answer + '</p>';
+                }
+                html += '</div>';
+            });
+            content.innerHTML = html;
+        }
+
+        init();
+    </script>
+</body>
+</html>

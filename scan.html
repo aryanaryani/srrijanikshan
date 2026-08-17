@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo/PDF Study - TopperWay</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563EB;
+            --secondary-color: #F4B400;
+            --text-dark: #0F172A;
+            --text-light: #475569;
+            --bg-light: #F8FAFC;
+            --white: #FFFFFF;
+            --border-color: #E2E8F0;
+            --practice: #059669;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', 'Noto Sans Devanagari', sans-serif; }
+        body { background-color: var(--bg-light); color: var(--text-dark); line-height: 1.6; }
+        a { text-decoration: none; }
+        .container { max-width: 800px; margin: 0 auto; padding: 0 20px; }
+
+        header { background: var(--white); box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05); position: sticky; top: 0; z-index: 1000; }
+        .nav-container { display: flex; justify-content: space-between; align-items: center; height: 75px; }
+        .logo { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .logo-text-dark { color: var(--text-dark); }
+        .logo-text-blue { color: var(--primary-color); }
+        .btn-primary { background: var(--primary-color); color: var(--white); padding: 8px 18px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; font-size: 14px; }
+
+        .page-header { background: linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 100%); padding: 44px 0 30px; text-align: center; border-bottom: 1px solid var(--border-color); }
+        .page-header h1 { font-size: 30px; margin-bottom: 8px; }
+        .page-header p { color: var(--text-light); }
+
+        .upload-card {
+            background: var(--white); border: 2px dashed var(--border-color); border-radius: 14px;
+            padding: 30px; margin: 30px 0 16px; text-align: center;
+        }
+        .upload-card.has-preview { border-style: solid; text-align: left; }
+        #previewImg { max-width: 100%; max-height: 320px; border-radius: 10px; display: block; margin: 0 auto 14px; }
+        #fileInput { display: none; }
+        .upload-btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+        .btn-outline {
+            background: var(--white); color: var(--primary-color); padding: 10px 20px; border-radius: 8px;
+            font-weight: 600; border: 1.5px solid var(--primary-color); cursor: pointer; font-size: 14px;
+        }
+
+        .question-box {
+            background: var(--white); border: 1px solid var(--border-color); border-radius: 14px;
+            padding: 20px; margin-bottom: 16px;
+        }
+        .question-box label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+        .question-box textarea {
+            width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);
+            font-size: 14px; font-family: inherit; resize: vertical;
+        }
+
+        .btn-submit {
+            background: var(--primary-color); color: var(--white); padding: 14px 24px; border: none;
+            border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%;
+        }
+        .btn-submit:disabled { opacity: .6; cursor: not-allowed; }
+
+        .result-section { margin-top: 24px; }
+        .result-card {
+            background: var(--white); border: 1px solid var(--border-color); border-radius: 14px;
+            padding: 20px; margin-bottom: 16px;
+        }
+        .result-card h3 { color: var(--primary-color); margin-bottom: 10px; font-size: 16px; }
+        .q-options { list-style: none; margin-top: 8px; }
+        .q-options li { padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; font-size: 14px; background: var(--bg-light); }
+        .q-options li.correct { background: #ECFDF5; color: var(--practice); font-weight: 600; }
+
+        .empty-state { text-align: center; padding: 30px 20px; color: var(--text-light); font-size: 14px; }
+
+        footer { background: var(--text-dark); color: var(--white); padding: 30px 0; text-align: center; margin-top: 60px; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container nav-container">
+            <a href="index.html" class="logo">
+                <span class="logo-text-dark">Topper</span><span class="logo-text-blue">Way</span>
+            </a>
+            <a href="index.html" class="btn-primary">Home</a>
+        </div>
+    </header>
+
+    <section class="page-header">
+        <div class="container">
+            <h1 style="display: flex; justify-content: center; align-items: center; gap: 12px;">
+              <img src="https://5.imimg.com/data5/SELLER/Default/2022/4/NH/DV/XM/892702/question-paper.jpeg" height="50px" alt="PDF Image" style="border-radius: 4px;"> 
+              Photo/PDF Study
+            </h1>
+            <p>किसी भी Book Page, Question या PDF की फोटो अपलोड करें — AI आपको समझाएगा</p>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="upload-card" id="uploadCard">
+            <div id="uploadPrompt">
+                <p style="font-size:40px;margin-bottom:10px;"><img src="https://play-lh.googleusercontent.com/flMMYwOfTA0Ha0gwRLDXfUwF0YFR42zUtQs_CBwjPb_SVHIuYRBXuCK4BTumymcPyBEEgoIXoAheqItkdeeS4Q" height="60px" alt="PDF Image"></a></p>
+                <p style="font-weight:600;margin-bottom:6px;">फोटो या PDF अपलोड करें</p>
+                <p style="color:var(--text-light);font-size:13px;margin-bottom:16px;">Book page, question paper, या कोई भी study material</p>
+                <button class="btn-primary" id="chooseFileBtn">फाइल चुनें</button>
+            </div>
+            <div id="previewArea" style="display:none;">
+                <img id="previewImg" alt="Preview">
+                <div class="upload-btn-row">
+                    <button class="btn-outline" id="changeFileBtn">🔄 दूसरी फाइल चुनें</button>
+                </div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*,application/pdf">
+        </div>
+
+        <div class="question-box">
+            <label>कोई specific सवाल है? (optional)</label>
+            <textarea id="userQuestion" rows="2" placeholder="जैसे: इस question का जवाब समझाओ, या खाली छोड़ दें सिर्फ explanation के लिए"></textarea>
+        </div>
+
+        <button class="btn-submit" id="analyzeBtn" disabled>🧠 AI से समझें</button>
+
+        <div class="result-section" id="resultSection"></div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 TopperWay. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        var SUPABASE_URL = "https://tphrdecdljxaqogocuxw.supabase.co";
+        var SUPABASE_ANON_KEY = "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy";
+        var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+        var fileInput = document.getElementById("fileInput");
+        var chooseFileBtn = document.getElementById("chooseFileBtn");
+        var changeFileBtn = document.getElementById("changeFileBtn");
+        var uploadCard = document.getElementById("uploadCard");
+        var uploadPrompt = document.getElementById("uploadPrompt");
+        var previewArea = document.getElementById("previewArea");
+        var previewImg = document.getElementById("previewImg");
+        var analyzeBtn = document.getElementById("analyzeBtn");
+        var resultSection = document.getElementById("resultSection");
+
+        var currentImageDataUrl = null;
+
+        chooseFileBtn.addEventListener("click", function () { fileInput.click(); });
+        changeFileBtn.addEventListener("click", function () { fileInput.click(); });
+
+        fileInput.addEventListener("change", async function () {
+            var file = fileInput.files[0];
+            if (!file) return;
+
+            analyzeBtn.disabled = true;
+            uploadPrompt.innerHTML = '<p>⏳ फाइल तैयार हो रही है...</p>';
+
+            try {
+                var dataUrl;
+                if (file.type === "application/pdf") {
+                    dataUrl = await pdfFirstPageToImage(file);
+                } else {
+                    dataUrl = await imageFileToResizedDataUrl(file);
+                }
+                currentImageDataUrl = dataUrl;
+                previewImg.src = dataUrl;
+                uploadPrompt.style.display = "none";
+                previewArea.style.display = "block";
+                uploadCard.classList.add("has-preview");
+                analyzeBtn.disabled = false;
+            } catch (err) {
+                uploadPrompt.innerHTML = '<p style="color:red;">फाइल पढ़ने में गड़बड़ हुई। दोबारा कोशिश करें।</p><button class="btn-primary" id="chooseFileBtn2" style="margin-top:10px;">फाइल चुनें</button>';
+                document.getElementById("chooseFileBtn2").addEventListener("click", function () { fileInput.click(); });
+            }
+        });
+
+        function imageFileToResizedDataUrl(file) {
+            return new Promise(function (resolve, reject) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var img = new Image();
+                    img.onload = function () {
+                        var maxDim = 1600;
+                        var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+                        var canvas = document.createElement("canvas");
+                        canvas.width = img.width * scale;
+                        canvas.height = img.height * scale;
+                        var ctx = canvas.getContext("2d");
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL("image/jpeg", 0.85));
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function pdfFirstPageToImage(file) {
+            var arrayBuffer = await file.arrayBuffer();
+            var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            var page = await pdf.getPage(1);
+            var viewport = page.getViewport({ scale: 1.5 });
+            var canvas = document.createElement("canvas");
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            var ctx = canvas.getContext("2d");
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            return canvas.toDataURL("image/jpeg", 0.85);
+        }
+
+        analyzeBtn.addEventListener("click", async function () {
+            if (!currentImageDataUrl) return;
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = "⏳ AI समझ रहा है... (10-20 सेकंड लगेंगे)";
+            resultSection.innerHTML = "";
+
+            var userQuestion = document.getElementById("userQuestion").value.trim();
+
+            try {
+                var res = await fetch(SUPABASE_URL + "/functions/v1/analyze-study-image", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+                        "apikey": SUPABASE_ANON_KEY
+                    },
+                    body: JSON.stringify({ image_base64: currentImageDataUrl, user_question: userQuestion })
+                });
+                var data = await res.json();
+
+                if (data.error) {
+                    resultSection.innerHTML = '<div class="empty-state">गड़बड़ हुई: ' + data.error + '</div>';
+                } else {
+                    window.lastScanData = data;
+                    renderResults(data);
+                }
+            } catch (err) {
+                resultSection.innerHTML = '<div class="empty-state">Network error: ' + err.message + '</div>';
+            }
+
+            analyzeBtn.disabled = false;
+            analyzeBtn.textContent = "🧠 AI से समझें";
+        });
+
+        function renderResults(data) {
+            var html = '<button class="btn-primary" onclick="saveScanToLibrary()" style="margin-bottom:14px;">💾 Library में Save करें</button>';
+
+            if (data.answer) {
+                html += '<div class="result-card"><h3>✅ आपके सवाल का जवाब</h3><p>' + data.answer.replace(/\n/g, "<br>") + '</p></div>';
+            }
+
+            if (data.explanation) {
+                html += '<div class="result-card"><h3>📖 Explanation</h3><p>' + data.explanation.replace(/\n/g, "<br>") + '</p></div>';
+            }
+
+            if (data.mcqs && data.mcqs.length > 0) {
+                html += '<div class="result-card"><h3>📝 Practice MCQs</h3>';
+                data.mcqs.forEach(function (q, i) {
+                    html += '<p style="font-weight:600;margin-top:12px;">' + (i + 1) + '. ' + q.question_text + '</p>';
+                    html += '<ul class="q-options">';
+                    (q.options || []).forEach(function (opt) {
+                        var isCorrect = opt === q.correct_answer;
+                        html += '<li class="' + (isCorrect ? "correct" : "") + '">' + opt + (isCorrect ? " ✓" : "") + '</li>';
+                    });
+                    html += '</ul>';
+                });
+                html += '</div>';
+            }
+
+            if (data.important_questions && data.important_questions.length > 0) {
+                html += '<div class="result-card"><h3>⭐ Important Questions</h3>';
+                data.important_questions.forEach(function (q, i) {
+                    html += '<p style="font-weight:600;margin-top:10px;">' + (i + 1) + '. ' + q.question_text + '</p>';
+                    html += '<p style="color:var(--text-light);font-size:14px;">' + q.answer + '</p>';
+                });
+                html += '</div>';
+            }
+
+            resultSection.innerHTML = html || '<div class="empty-state">कोई result नहीं मिला, दोबारा कोशिश करें।</div>';
+        }
+
+        async function saveScanToLibrary() {
+            var session = await supabase.auth.getSession();
+            var userId = session.data.session ? session.data.session.user.id : null;
+            if (!userId) { alert("Save करने के लिए पहले Home page पर जाकर लॉगिन करें।"); return; }
+            var data = window.lastScanData;
+            if (!data) return;
+            var res = await supabase.from("library_items").insert({
+                user_id: userId,
+                item_type: "scan",
+                title: (data.explanation || "Scan Result").slice(0, 60),
+                content: data
+            });
+            if (res.error) alert("Save नहीं हो पाया: " + res.error.message);
+            else alert("✅ Library में save हो गया!");
+        }
+    </script>
+</body>
+</html>

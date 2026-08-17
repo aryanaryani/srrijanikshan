@@ -83,6 +83,27 @@
         }
         .pagination button:disabled { opacity: .4; cursor: not-allowed; }
         .pagination span { font-size: 14px; color: var(--text-light); }
+        .notes-tab-btn {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border-color);
+    background: var(--white); cursor: pointer; font-size: 13px; font-weight: 600;
+    white-space: nowrap; color: var(--text-light);
+}
+.notes-tab-btn.active { background: var(--primary-color); color: var(--white); border-color: var(--primary-color); }
+.flashcard {
+    perspective: 1000px; height: 150px; margin-bottom: 14px; cursor: pointer;
+}
+.flashcard-inner {
+    position: relative; width: 100%; height: 100%; transition: transform .5s;
+    transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back {
+    position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+    border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    padding: 16px; text-align: center; font-weight: 600; font-size: 15px;
+}
+.flashcard-front { background: var(--primary-color); color: var(--white); }
+.flashcard-back { background: #ECFDF5; color: var(--text-dark); transform: rotateY(180deg); font-weight: 500; font-size: 14px; }
 
         .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); }
 
@@ -148,6 +169,18 @@
 
         <div class="results-meta">
             <span id="resultsCount">विषय चुनकर शुरू करें</span>
+            <button class="btn-primary" id="openNotesBtn" style="display:none;">📝 AI Notes बनाएं</button>
+        </div>
+
+        <div id="notesPanel" style="display:none;">
+            <div class="filters-bar" style="display:flex;gap:8px;overflow-x:auto;padding:12px;">
+                <button class="notes-tab-btn active" data-type="short">📌 Short Notes</button>
+                <button class="notes-tab-btn" data-type="detailed">📖 Detailed Notes</button>
+                <button class="notes-tab-btn" data-type="formulas">🧮 Formulas</button>
+                <button class="notes-tab-btn" data-type="flashcards">🎴 Flashcards</button>
+                <button class="notes-tab-btn" data-type="important_questions">⭐ Important Questions</button>
+            </div>
+            <div id="notesContent" class="q-card" style="min-height:200px;"></div>
         </div>
 
         <div id="questionsList"></div>
@@ -249,7 +282,10 @@
             }
 
             div.innerHTML =
-                '<div class="q-meta">' + badgesHtml + '</div>' +
+                '<div class="q-meta" style="justify-content:space-between;display:flex;align-items:center;">' +
+                  '<div>' + badgesHtml + '</div>' +
+                  '<button onclick="saveQuestionToLibrary(\'' + q.id + '\')" style="background:none;border:1px solid var(--secondary-color);color:var(--secondary-color);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;">🔖 Save</button>' +
+                '</div>' +
                 '<div class="q-text">' + q.question_text + '</div>' +
                 optionsHtml + toggleHtml + answerHtml;
 
@@ -264,6 +300,30 @@
             }
 
             return div;
+        }
+
+        var loadedQuestionsMap = {};
+
+        async function saveQuestionToLibrary(qId) {
+            var session = await supabase.auth.getSession();
+            var userId = session.data.session ? session.data.session.user.id : null;
+            if (!userId) {
+                alert("Save करने के लिए पहले Home page पर जाकर लॉगिन करें।");
+                return;
+            }
+            var q = loadedQuestionsMap[qId];
+            if (!q) return;
+            var res = await supabase.from("library_items").insert({
+                user_id: userId,
+                item_type: "question",
+                title: q.question_text.slice(0, 80),
+                content: q
+            });
+            if (res.error) {
+                alert("Save नहीं हो पाया: " + res.error.message);
+            } else {
+                alert("✅ Save हो गया! अपनी Library में देखें।");
+            }
         }
 
         async function loadQuestions() {
@@ -304,6 +364,7 @@
 
             questionsList.innerHTML = "";
             data.forEach(function (q) {
+                loadedQuestionsMap[q.id] = q;
                 questionsList.appendChild(renderQuestion(q));
             });
 
@@ -346,7 +407,119 @@
                 loadQuestions();
             }
         }
+
+        async function saveNotesToLibrary() {
+            var session = await supabase.auth.getSession();
+            var userId = session.data.session ? session.data.session.user.id : null;
+            if (!userId) { alert("Save करने के लिए पहले Home page पर जाकर लॉगिन करें।"); return; }
+            var data = window.lastNotesData;
+            var type = window.lastNotesType;
+            if (!data) return;
+            var typeLabels = { short: "Short Notes", detailed: "Detailed Notes", formulas: "Formulas", flashcards: "Flashcards", important_questions: "Important Questions" };
+            var res = await supabase.from("library_items").insert({
+                user_id: userId,
+                item_type: "note",
+                title: data.chapter_name + " — " + (typeLabels[type] || type),
+                content: data
+            });
+            if (res.error) alert("Save नहीं हो पाया: " + res.error.message);
+            else alert("✅ Notes Library में save हो गए!");
+        }
+
         init();
+        var SUPABASE_FN_BASE = SUPABASE_URL + "/functions/v1/";
+        document.getElementById("openNotesBtn").addEventListener("click", function () {
+            var panel = document.getElementById("notesPanel");
+            panel.style.display = panel.style.display === "none" ? "block" : "none";
+            if (panel.style.display === "block") loadNotes("short");
+        });
+
+        document.querySelectorAll(".notes-tab-btn").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                document.querySelectorAll(".notes-tab-btn").forEach(function (b) { b.classList.remove("active"); });
+                btn.classList.add("active");
+                loadNotes(btn.dataset.type);
+            });
+        });
+
+        async function loadNotes(noteType) {
+            var chapterId = chapterFilter.value;
+            var content = document.getElementById("notesContent");
+            if (!chapterId) {
+                content.innerHTML = '<p class="empty-state">पहले ऊपर से एक specific Chapter चुनें (सभी नहीं)।</p>';
+                return;
+            }
+            content.innerHTML = '<p class="empty-state">⏳ AI Notes तैयार हो रहे हैं...</p>';
+
+            var res = await fetch(SUPABASE_FN_BASE + "generate-notes", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+                    "apikey": SUPABASE_ANON_KEY
+                },
+                body: JSON.stringify({ chapter_id: chapterId, note_type: noteType })
+            });
+            var data = await res.json();
+            if (data.error) {
+                content.innerHTML = '<p class="empty-state">गड़बड़ हुई: ' + data.error + '</p>';
+                return;
+            }
+            renderNotes(noteType, data);
+        }
+
+        function renderNotes(noteType, data) {
+            window.lastNotesData = data;
+            window.lastNotesType = noteType;
+            var content = document.getElementById("notesContent");
+            var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
+                '<h3 style="margin:0;">' + data.chapter_name + '</h3>' +
+                '<button class="btn-primary" onclick="saveNotesToLibrary()" style="font-size:12px;padding:6px 12px;">💾 Save</button>' +
+                '</div>';
+
+            if (noteType === "short" || noteType === "detailed") {
+                var text = data.content
+                    .replace(/^## (.*)$/gm, '<h4 style="color:var(--primary-color);margin:16px 0 6px;">$1</h4>')
+                    .replace(/^- (.*)$/gm, '<li>$1</li>')
+                    .replace(/\n/g, '<br>');
+                html += '<div style="line-height:1.8;">' + text + '</div>';
+            } else if (noteType === "formulas") {
+                html += '<ul style="list-style:none;">';
+                (data.items || []).forEach(function (item) {
+                    html += '<li style="padding:10px;background:var(--bg-light);border-radius:8px;margin-bottom:8px;"><strong>' + item.term + ':</strong> ' + item.value + '</li>';
+                });
+                html += '</ul>';
+            } else if (noteType === "flashcards") {
+                html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;">';
+                (data.items || []).forEach(function (item, i) {
+                    html += '<div class="flashcard" onclick="this.classList.toggle(\'flipped\')">' +
+                        '<div class="flashcard-inner">' +
+                        '<div class="flashcard-front">' + item.front + '</div>' +
+                        '<div class="flashcard-back">' + item.back + '</div>' +
+                        '</div></div>';
+                });
+                html += '</div><p style="font-size:12px;color:var(--text-light);margin-top:10px;">💡 Card पर click करके पलटें</p>';
+            } else if (noteType === "important_questions") {
+                html += '<h4 style="color:var(--primary-color);margin-bottom:8px;">MCQ</h4>';
+                (data.mcq || []).forEach(function (q, i) {
+                    html += '<p style="margin-bottom:6px;"><strong>' + (i + 1) + '.</strong> ' + q.question_text + ' <span style="color:var(--practice);font-weight:600;">(' + q.correct_answer + ')</span></p>';
+                });
+                html += '<h4 style="color:var(--primary-color);margin:16px 0 8px;">Short Answer</h4>';
+                (data.short || []).forEach(function (q, i) {
+                    html += '<p style="margin-bottom:6px;"><strong>' + (i + 1) + '.</strong> ' + q.question_text + '</p>';
+                });
+                html += '<h4 style="color:var(--primary-color);margin:16px 0 8px;">Long Answer</h4>';
+                (data.long || []).forEach(function (q, i) {
+                    html += '<p style="margin-bottom:6px;"><strong>' + (i + 1) + '.</strong> ' + q.question_text + '</p>';
+                });
+            }
+            content.innerHTML = html;
+        }
+
+        subjectFilter.addEventListener("change", function () {
+            document.getElementById("openNotesBtn").style.display = subjectFilter.value ? "inline-block" : "none";
+            document.getElementById("notesPanel").style.display = "none";
+        });
     </script>
 </body>
 </html>
