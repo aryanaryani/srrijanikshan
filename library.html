@@ -23,7 +23,7 @@
         background-color: var(--bg-light); 
         color: var(--text-dark); 
         line-height: 1.6; 
-        min-height: 100vh;
+        min-height: 100vh; /* Screen ki full height lega */
         display: flex;
         flex-direction: column;
         }
@@ -37,9 +37,9 @@
         .logo-text-blue { color: var(--primary-color); }
         .btn-primary { background: var(--primary-color); color: var(--white); padding: 8px 18px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; font-size: 14px; }
 
-        .main-content {
-            flex: 1;
-        }
+         body > .container {
+         flex: 1;
+         }
         
         .page-header { background: linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 100%); padding: 44px 0 30px; text-align: center; border-bottom: 1px solid var(--border-color); }
         .page-header h1 { font-size: 30px; margin-bottom: 8px; }
