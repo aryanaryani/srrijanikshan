@@ -9,6 +9,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Hind:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth-check.js"></script>
+<!-- Razorpay Checkout Script -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <style>
 /* ==========================================================================
    Srrijan Ikshan — design tokens
@@ -564,15 +567,17 @@ img{ max-width:100%; display:block; }
    ========================================================================== */
 .modal-overlay{
   position:fixed; inset:0; background:rgba(20,26,42,0.55); backdrop-filter:blur(4px);
-  display:flex; align-items:center; justify-content:center; z-index:1000;
+  display:flex; align-items:flex-start; justify-content:center; z-index:1000;
   opacity:0; pointer-events:none; transition:opacity .25s var(--ease);
-  padding:20px;
+  padding:20px; overflow-y:auto;
 }
 .modal-overlay.active{ opacity:1; pointer-events:auto; }
 .modal-box{
   background:var(--surface); border-radius:var(--radius-lg); padding:36px 32px;
   width:100%; max-width:400px; position:relative;
   box-shadow:var(--shadow-pop);
+  max-height:calc(100vh - 40px); overflow-y:auto;
+  margin:20px auto;
   transform:translateY(16px) scale(.97); opacity:0; transition:transform .3s var(--ease), opacity .3s var(--ease);
 }
 .modal-overlay.active .modal-box.visible{ transform:translateY(0) scale(1); opacity:1; }
@@ -645,11 +650,16 @@ img{ max-width:100%; display:block; }
     flex-direction:column; padding:20px 24px; gap:18px;
     border-bottom:1px solid var(--line);
     box-shadow:0 12px 24px -12px rgba(10,21,44,.25);
-    max-height:0; overflow:hidden; opacity:0;
-    transition:max-height .3s var(--ease), opacity .25s var(--ease);
+    opacity:0; visibility:hidden; pointer-events:none;
+    transform:translateY(-8px);
+    transition:opacity .25s var(--ease), transform .25s var(--ease), visibility 0s .25s;
     z-index:400;
   }
-  .main-nav.open{ max-height:80vh; opacity:1; overflow-y:auto; }
+  .main-nav.open{
+    opacity:1; visibility:visible; pointer-events:auto; transform:translateY(0);
+    transition:opacity .25s var(--ease), transform .25s var(--ease);
+    overflow:visible;
+  }
   .nav-toggle{ display:flex; }
   #navLoginBtn{ display:none; }
   .user-chip-name{ display:none; }
@@ -866,7 +876,7 @@ img{ max-width:100%; display:block; }
     <nav class="main-nav" id="mainNav">
       <a href="#prediction">AI Prediction</a>
       <a href="#revision">1-Day Revision</a>
-      <a href="questions.html">Question Bank</a>
+      <a href="questions.html" id="navQuestionBankLink">Question Bank</a>
       <a href="#" data-modal-open="dailyPractice" id="navDailyPracticeLink">🔥 Daily Practice</a>
       <a href="#" data-modal-open="dailyQuiz" id="navDailyQuizLink">🏆 Daily Quiz</a>
       <div class="nav-more-wrap">
@@ -875,8 +885,8 @@ img{ max-width:100%; display:block; }
           <a href="#how">कैसे काम करता है</a>
           <a href="#subjects">विषय</a>
           <a href="#pricing">Pricing</a>
-          <a href="scan.html">📷 Photo/PDF Study</a>
-          <a href="library.html">📚 My Library</a>
+          <a href="scan.html" id="navPhotoStudyLink">📷 Photo/PDF Study</a>
+          <a href="library.html" id="navLibraryLink">📚 My Library</a>
           <a href="#faq">FAQ</a>
         </div>
       </div>
@@ -1198,27 +1208,26 @@ img{ max-width:100%; display:block; }
         <p class="section-sub center">बताइए कितने घंटे बचे हैं — हम आपके लिए personalized crash-revision plan बना देंगे।</p>
       </div>
 
-      <div class="revision-tool reveal-up" style="--delay:.1s">
-        <div class="revision-controls">
+      <div class="revision-tool reveal-up" style="--delay:.1s" id="revisionTool">
+        <div class="revision-controls" id="revisionControls">
           <label for="hoursRange">⏳ कितने घंटे उपलब्ध हैं?</label>
           <input type="range" id="hoursRange" min="3" max="10" value="8" step="1">
           <div class="hours-readout"><span id="hoursValue">8</span> घंटे बचे हैं</div>
 
-          <label for="subjectSelect">📘 विषय चुनें</label>
-          <select id="subjectSelect">
-            <option value="गणित">गणित</option>
-            <option value="विज्ञान">विज्ञान</option>
-            <option value="सामाजिक विज्ञान">सामाजिक विज्ञान</option>
-            <option value="हिंदी">हिंदी</option>
-            <option value="English">English</option>
-            <option value="संस्कृत">संस्कृत</option>
-          </select>
-
-          <button class="btn btn-solid" id="generatePlanBtn">⚡ Crash Plan बनाएं</button>
+          <button class="btn btn-solid" id="generatePlanBtn">⚡ Crash Plan बनाएं (सभी विषय मिलाकर)</button>
         </div>
 
         <div class="revision-output" id="revisionOutput" aria-live="polite">
-          <p class="output-placeholder">बटन दबाएं और अपना घंटे-दर-घंटे revision plan देखें।</p>
+          <p class="output-placeholder">बटन दबाएं और अपना घंटे-दर-घंटे revision plan देखें — सभी विषयों को मिलाकर।</p>
+        </div>
+
+        <div class="revision-lock" id="revisionLock" style="display:none; grid-column:1 / -1; text-align:center; padding:36px 20px;">
+          <div style="display:flex; justify-content:center; align-items:center; width:100%; padding-top:30px; border-top:1px solid var(--border-color); flex-wrap:wrap;">
+              <img src="lock.png" alt="Founder" height="100px">
+          </div>
+          <p style="font-weight:700; margin-bottom:6px;">1-Day Revision Mode सिर्फ Full Class 10 Pack (all-subject) members ke liye hai</p>
+          <p style="color:rgba(245,239,224,.72); font-size:.9rem; margin-bottom:18px;">Yeh feature sabhi subjects ko mix karke crash plan banata hai, isliye sirf full-access plan me unlock hota hai.</p>
+          <a href="#pricing" class="btn btn-solid">Full Class 10 Pack देखें</a>
         </div>
       </div>
     </div>
@@ -1268,7 +1277,7 @@ img{ max-width:100%; display:block; }
       <p class="section-sub center">Pricing user testing के आधार पर आगे बदल सकती है।</p>
 
       <div class="pricing-grid reveal-group">
-        <div class="price-card reveal-up">
+        <div class="price-card reveal-up" id="priceCardFree">
           <h3>Free</h3>
           <p class="price-amt">₹0</p>
           <ul class="price-features">
@@ -1277,37 +1286,40 @@ img{ max-width:100%; display:block; }
             <li>Limited mock tests</li>
             <li>Basic analysis</li>
           </ul>
-          <button class="btn btn-outline btn-block" data-modal-open="signup">फ्री शुरू करें</button>
+          <button class="btn btn-outline btn-block" data-modal-open="signup" id="freeStartBtn">फ्री शुरू करें</button>
+          <p id="freeActiveLabel" style="display:none; text-align:center; color:#16a34a; font-weight:600; margin:0;">✓ Active Plan</p>
         </div>
 
-        <div class="price-card reveal-up">
-          <h3>Subject Pack</h3>
-          <p class="price-amt">₹49<span>–₹79</span></p>
+        <div class="price-card reveal-up" id="priceCardSingle">
+          <h3>Singel Subject Pack</h3>
+          <p class="price-amt">₹99</p>
           <ul class="price-features">
             <li>1 विषय — पूरा access</li>
             <li>1,000 MCQs + 200 Short + 100 Long</li>
             <li>AI Prediction</li>
             <li>Full Mock Tests</li>
           </ul>
-          <button class="btn btn-outline btn-block" data-modal-open="signup">चुनें</button>
+          <!-- Is button ko change karein -->
+          <button class="btn btn-outline btn-block" onclick="openSubjectModal()">चुनें</button>
         </div>
 
-        <div class="price-card price-card-featured reveal-up">
+        <div class="price-card price-card-featured reveal-up" id="priceCardFull">
           <span class="price-tag">सबसे लोकप्रिय</span>
           <h3>Full Class 10 Pack</h3>
-          <p class="price-amt">₹199<span>–₹299</span></p>
+          <p class="price-amt">₹599</p>
           <ul class="price-features">
             <li>सभी 6 विषय — पूरा access</li>
             <li>AI Tutor + Personalized Plan</li>
             <li>1-Day Revision Mode</li>
             <li>Advanced Analytics</li>
           </ul>
-          <button class="btn btn-solid btn-block" data-modal-open="signup">चुनें</button>
+          <!-- Is button ko change karein -->
+          <button class="btn btn-solid btn-block" onclick="buyAllSubjectPack()">चुनें</button>
         </div>
 
-        <div class="price-card reveal-up">
+        <div class="price-card reveal-up" id="priceCardLastMinute">
           <h3>Last-Minute Pack</h3>
-          <p class="price-amt">₹99</p>
+          <p class="price-amt">₹79</p>
           <ul class="price-features">
             <li>Most Expected Sections</li>
             <li>1-Day Revision Mode</li>
@@ -1322,12 +1334,12 @@ img{ max-width:100%; display:block; }
 
   <!-- ============ REFERRAL STRIP ============ -->
   <section class="referral-strip">
-    <div class="wrap referral-inner reveal-up">
+    <div class="wrap referral-inner reveal-up" id="referralStripInner">
       <div>
         <h3>🎁 3 दोस्तों को Invite करें — 7 दिन Premium फ्री पाएं</h3>
         <p>या 5 दोस्तों को invite करें और ₹50 का discount पाएं।</p>
       </div>
-      <button class="btn btn-solid" data-modal-open="signup">Referral शुरू करें</button>
+      <button class="btn btn-solid" data-modal-open="signup" id="referralStartBtn">Referral शुरू करें</button>
     </div>
   </section>
 
@@ -1357,32 +1369,6 @@ img{ max-width:100%; display:block; }
         <div class="faq-item">
           <button class="faq-q">क्या content offline भी उपलब्ध होगा? <span class="faq-icon">+</span></button>
           <div class="faq-a"><p>Saved questions और downloaded material को offline access किया जा सकेगा, प्रीमियम content की सुरक्षा के उचित उपायों के साथ।</p></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ APP DOWNLOAD ============ -->
-  <section class="section app-section">
-    <div class="wrap app-grid reveal-up">
-      <div>
-        <p class="eyebrow">Android App</p>
-        <h2 class="section-title">पढ़ाई साथ ले जाइए</h2>
-        <p class="section-sub-left">कम network वाले Android फ़ोन पर भी तेज़ और smooth। Login एक बार, सब जगह sync।</p>
-        <a href=" #playstore" class="playstore-btn">
-        <img src="playstore.png" alt="Google Play" class="playstore-icon">
-        <span class="playstore-text"> जल्द आ रहा है </span>
-      </a>
-        </div>
-
-      <div class="phone-mock" aria-hidden="true">
-        <div class="phone-notch"></div>
-        <div class="phone-screen">
-          <div class="phone-header">नमस्ते, विद्यार्थी 👋</div>
-          <div class="phone-stat-row"><span>Overall Progress</span><b>58%</b></div>
-          <div class="phone-progress"><i style="--w:58%"></i></div>
-          <div class="phone-chip">🔥 आज का लक्ष्य: 20 MCQs</div>
-          <div class="phone-chip weak">⚠️ Weak: रासायनिक अभिक्रियाएं</div>
         </div>
       </div>
     </div>
@@ -1648,7 +1634,200 @@ img{ max-width:100%; display:block; }
     if (btn.dataset.originalText) btn.textContent = btn.dataset.originalText;
   }
 
+  // ---- Pricing section: login/plan ke hisaab se cards adjust karo ----
+  async function updatePricingVisibility(user) {
+    var pricingSection = document.getElementById("pricing");
+    var cardFree = document.getElementById("priceCardFree");
+    var cardSingle = document.getElementById("priceCardSingle");
+    var cardFull = document.getElementById("priceCardFull");
+    var cardLastMinute = document.getElementById("priceCardLastMinute");
+
+    if (!user) {
+      // Logged out: sab default state me
+      if (pricingSection) pricingSection.style.display = "";
+      if (cardFree) cardFree.style.display = "";
+      if (cardSingle) cardSingle.style.display = "";
+      if (cardFull) cardFull.style.display = "";
+      if (cardLastMinute) cardLastMinute.style.display = "";
+      return;
+    }
+
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("subscription_status, premium_free_until")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      var accountType = profile ? profile.subscription_status : "FREE";
+      var hasFreeTrial = profile && profile.premium_free_until && new Date(profile.premium_free_until) > new Date();
+
+      if (accountType === "PAID_ALL" || hasFreeTrial) {
+        // Sab kuch mil chuka hai (1-Day Revision Mode sahit, ya referral wala 7-din free trial chal raha hai) -> pura Pricing
+        // section hi hata do, dikhane ko kuch bacha hi nahi
+        if (pricingSection) pricingSection.style.display = "none";
+        return;
+      }
+
+      if (pricingSection) pricingSection.style.display = "";
+      // Logged in (par PAID_ALL nahi): Free card hata do (login karte hi default free mil chuka hota hai)
+      if (cardFree) cardFree.style.display = "none";
+
+      if (accountType === "PAID_SINGLE") {
+        // Single subject pack khareed liya -> uska card hata do, baaki rakho
+        if (cardSingle) cardSingle.style.display = "none";
+        if (cardFull) cardFull.style.display = "";
+        if (cardLastMinute) cardLastMinute.style.display = "";
+      } else {
+        if (cardSingle) cardSingle.style.display = "";
+        if (cardFull) cardFull.style.display = "";
+        if (cardLastMinute) cardLastMinute.style.display = "";
+      }
+    } catch (e) {
+      console.error("Pricing visibility check failed:", e);
+    }
+  }
+
+  function setupPremiumLinkGating() {
+    var linkFeatureMap = {
+      navQuestionBankLink: "question_bank",
+      navPhotoStudyLink: "photo_study",
+      navLibraryLink: "library"
+    };
+    Object.keys(linkFeatureMap).forEach(function (linkId) {
+      var link = document.getElementById(linkId);
+      if (!link || link.dataset.gated) return; // duplicate listener na lage
+      link.dataset.gated = "1";
+      link.addEventListener("click", function (e) {
+        var feature = linkFeatureMap[linkId];
+        // window.userProfile auth-check.js se set hota hai; agar abhi load nahi hua to allow kar do (fail-open, UX-level check hai)
+        if (typeof window.hasAccess === "function" && window.userProfile) {
+          if (!window.hasAccess(feature)) {
+            e.preventDefault();
+            if (typeof window.showUpgradeAlert === "function") {
+              window.showUpgradeAlert(feature);
+            } else {
+              alert("🔒 Yeh feature sirf paid members ke liye hai.");
+            }
+            return;
+          }
+          // Single-subject user ho to target page ko URL me subject bata do (jab wo page bhi is param ko padhna support kare)
+          if (window.userProfile.subscription_status === "PAID_SINGLE" && window.userProfile.subject_access) {
+            var href = link.getAttribute("href");
+            if (href && href.indexOf("#") !== 0) {
+              e.preventDefault();
+              window.location.href = href + "?subject=" + encodeURIComponent(window.userProfile.subject_access);
+            }
+          }
+        }
+      });
+    });
+  }
+
+  /* ===========================================================
+     Referral System
+     =========================================================== */
+
+  // Step 1: Agar URL me ?ref=CODE hai, to save kar lo (signup hone tak yaad rahega)
+  (function captureReferralFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var refCode = params.get("ref");
+    if (refCode) {
+      localStorage.setItem("pending_ref_code", refCode.toUpperCase());
+      var cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  })();
+
+  // Step 2: Naya user login/signup ho jaaye to use uske referrer se link karo
+  async function attachReferralIfNeeded(user) {
+    var pendingCode = localStorage.getItem("pending_ref_code");
+    if (!pendingCode) return;
+
+    try {
+      const { data: myProfile } = await supabase
+        .from("profiles")
+        .select("referred_by")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (myProfile && myProfile.referred_by) {
+        localStorage.removeItem("pending_ref_code");
+        return;
+      }
+
+      const { data: referrer } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("referral_code", pendingCode)
+        .maybeSingle();
+
+      if (referrer && referrer.id !== user.id) {
+        await supabase.from("profiles").update({ referred_by: referrer.id }).eq("id", user.id);
+      }
+      localStorage.removeItem("pending_ref_code");
+    } catch (e) {
+      console.error("Referral attach error:", e);
+    }
+  }
+
+  // Step 3: Logged-in user ko uska apna referral link/code dikhao
+  async function updateReferralUI(user) {
+    var stripInner = document.getElementById("referralStripInner");
+    var startBtn = document.getElementById("referralStartBtn");
+    if (!stripInner || !startBtn) return;
+
+    if (!user) {
+      startBtn.style.display = "";
+      var existingPanel = document.getElementById("referralSharePanel");
+      if (existingPanel) existingPanel.remove();
+      return;
+    }
+
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("referral_code, referral_count")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!profile || !profile.referral_code) return;
+
+      startBtn.style.display = "none";
+
+      var existingPanel = document.getElementById("referralSharePanel");
+      if (existingPanel) existingPanel.remove();
+
+      var link = window.location.origin + window.location.pathname + "?ref=" + profile.referral_code;
+      var count = profile.referral_count || 0;
+      var waText = encodeURIComponent("Srrijan Ikshan pe Bihar Board Class 10 ki free study kit try karo! " + link);
+
+      var panel = document.createElement("div");
+      panel.id = "referralSharePanel";
+      panel.style.cssText = "display:flex;flex-direction:column;gap:8px;align-items:flex-end;";
+      panel.innerHTML =
+        '<p style="margin:0;font-size:13px;color:#3a2c10;">अभी तक ' + count + ' दोस्तों ने join किया</p>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+        '<button class="btn btn-solid" id="refCopyBtn" style="background:var(--ink);">🔗 Link Copy करें</button>' +
+        '<a class="btn btn-solid" href="https://wa.me/?text=' + waText + '" target="_blank" style="background:#25D366;color:#fff;">📱 WhatsApp पर भेजें</a>' +
+        '</div>';
+      stripInner.appendChild(panel);
+
+      document.getElementById("refCopyBtn").addEventListener("click", function () {
+        navigator.clipboard.writeText(link).then(function () {
+          alert("✓ Link copy हो गया! अब इसे दोस्तों को भेजें।");
+        });
+      });
+    } catch (e) {
+      console.error("Referral UI error:", e);
+    }
+  }
+
   function renderAuthedUI(user) {
+    updatePricingVisibility(user);
+    setupPremiumLinkGating();
+    if (user) attachReferralIfNeeded(user).then(function () { updateReferralUI(user); });
+    else updateReferralUI(null);
     if (!user) {
       navLoginBtn.hidden = false;
       navSignupBtn.hidden = false;
@@ -1686,13 +1865,67 @@ img{ max-width:100%; display:block; }
     supabase.auth.signOut();
   });
 
-  // ---- Google OAuth ----
-  function googleSignIn() {
-    supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.href.split("#")[0] }
+  // ---- Google OAuth (Deep Link Support for Android App) ----
+  async function googleSignIn() {
+    try {
+      // NOTE: origin string check (capacitor://, http://localhost) is unreliable —
+      // Android WebView origin is usually "https://localhost", so it was falling
+      // through to the "web" branch even inside the app. Capacitor.isNativePlatform()
+      // is the correct, official way to detect the native app.
+      var isApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
+      // IMPORTANT: this scheme MUST exactly match what is registered as a
+      // Redirect URL in Supabase (Auth > URL Configuration) AND the intent-filter
+      // scheme declared in AndroidManifest.xml. Update the string below to match.
+      var redirectUri = isApp ? "com.srrijanikshan.app://google-auth" : window.location.origin + window.location.pathname;
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: redirectUri,
+          skipBrowserRedirect: isApp
+        }
+      });
+
+      if (error) throw error;
+
+      if (isApp && data?.url) {
+        if (window.Capacitor?.Plugins?.Browser) {
+          await window.Capacitor.Plugins.Browser.open({ url: data.url });
+        } else {
+          window.location.href = data.url;
+        }
+      }
+    } catch (err) {
+      alert("Google Sign-In Error: " + (err.message || err));
+    }
+  }
+
+  // App par wapas lautne par Session set karne ka listener
+  if (window.Capacitor?.Plugins?.App) {
+    window.Capacitor.Plugins.App.addListener('appUrlOpen', async function (data) {
+      if (data.url && data.url.includes("google-auth")) {
+        // Browser window band karein
+        if (window.Capacitor?.Plugins?.Browser) {
+          await window.Capacitor.Plugins.Browser.close();
+        }
+        
+        // URL hash se tokens nikal kar Supabase session create karein
+        var hash = data.url.split('#')[1];
+        if (hash) {
+          var params = new URLSearchParams(hash);
+          var access_token = params.get("access_token");
+          var refresh_token = params.get("refresh_token");
+
+          if (access_token && refresh_token) {
+            await supabase.auth.setSession({ access_token, refresh_token });
+            window.location.reload();
+          }
+        }
+      }
     });
   }
+
   document.getElementById("googleLoginBtn").addEventListener("click", googleSignIn);
   document.getElementById("googleSignupBtn").addEventListener("click", googleSignIn);
 
@@ -1843,22 +2076,28 @@ img{ max-width:100%; display:block; }
      =========================================================== */
   var hoursRange = document.getElementById("hoursRange");
   var hoursValue = document.getElementById("hoursValue");
-  var subjectSelect = document.getElementById("subjectSelect");
   var generateBtn = document.getElementById("generatePlanBtn");
   var output = document.getElementById("revisionOutput");
+  var revisionControls = document.getElementById("revisionControls");
+  var revisionOutputEl = document.getElementById("revisionOutput");
+  var revisionLock = document.getElementById("revisionLock");
 
   hoursRange.addEventListener("input", function () {
     hoursValue.textContent = hoursRange.value;
   });
 
-  var SUBJECT_SLUG_MAP = {
-    "गणित": "math",
-    "विज्ञान": "science",
-    "सामाजिक विज्ञान": "social-science",
-    "हिंदी": "hindi",
-    "English": "english",
-    "संस्कृत": "sanskrit"
-  };
+  // Sirf PAID_ALL (Full Class 10 Pack) wale members ya referral se mile
+  // free-trial wale ke liye unlock — kyunki yeh feature sabhi subjects
+  // mix karke ek crash plan banata hai
+  (async function () {
+    if (window.authCheckReady) { await window.authCheckReady; }
+    var plan = window.userProfile || { subscription_status: "FREE" };
+    if (!isEffectivelyPaidAll(plan)) {
+      if (revisionControls) revisionControls.style.display = "none";
+      if (revisionOutputEl) revisionOutputEl.style.display = "none";
+      if (revisionLock) revisionLock.style.display = "block";
+    }
+  })();
 
   function renderQuestionList(items, type) {
     if (!items || items.length === 0) return '<p class="output-placeholder">इस विषय के लिए अभी questions उपलब्ध नहीं हैं।</p>';
@@ -1882,27 +2121,32 @@ img{ max-width:100%; display:block; }
     return html;
   }
 
-  async function fetchRevisionPlan(subjectSlug, hours) {
+  async function fetchRevisionPlan(hours) {
+    // Asli logged-in user ka token bhejo taaki backend PAID_ALL check kar sake
+    // (pehle hamesha static anon key jaati thi — server ko pata hi nahi chalta tha kaun call kar raha hai)
+    var sessionRes = await supabase.auth.getSession();
+    var userToken = (sessionRes.data.session && sessionRes.data.session.access_token) || "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy";
+
     var res = await fetch("https://tphrdecdljxaqogocuxw.supabase.co/functions/v1/get-revision-plan", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy",
+        "Authorization": "Bearer " + userToken,
         "apikey": "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy"
       },
-      body: JSON.stringify({ subject_slug: subjectSlug, hours: hours })
+      body: JSON.stringify({ hours: hours })
     });
     return res.json();
   }
 
-  function renderPlan(data, hours, subjectLabel) {
-    var html = '<div class="plan-final"><h4 style="font-family:var(--font-mono);color:var(--accent);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;">⚡ ' + hours + ' घंटे — ' + subjectLabel + ' Crash Plan</h4></div>';
+  function renderPlan(data, hours) {
+    var html = '<div class="plan-final"><h4 style="font-family:var(--font-mono);color:var(--accent);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;">⚡ ' + hours + ' घंटे — सभी विषय Crash Plan</h4></div>';
 
     if (data.hourBlocks && data.hourBlocks.length > 0) {
       data.hourBlocks.forEach(function (block) {
         html += '<div class="plan-row">' +
           '<span class="plan-hour">Hour ' + block.hour + '</span>' +
-          '<div><p class="plan-task">' + block.chapters.join(', ') + '</p>' +
+          '<div><p class="plan-task">' + (block.subject_name ? block.subject_name + ' — ' : '') + block.chapters.join(', ') + '</p>' +
           '<p class="plan-desc">इन chapters के high-priority questions पढ़ें।</p></div>' +
           '</div>';
       });
@@ -1921,28 +2165,75 @@ img{ max-width:100%; display:block; }
 
   generateBtn.addEventListener("click", async function () {
     var hours = parseInt(hoursRange.value, 10);
-    var subjectLabel = subjectSelect.value;
-    var subjectSlug = SUBJECT_SLUG_MAP[subjectLabel];
 
     output.innerHTML = '<p class="output-placeholder">⏳ आपका plan तैयार हो रहा है...</p>';
 
-    if (!subjectSlug) {
-      output.innerHTML = '<p class="output-placeholder">यह विषय अभी उपलब्ध नहीं है, कृपया गणित या विज्ञान चुनें।</p>';
-      return;
-    }
-
     try {
-      var data = await fetchRevisionPlan(subjectSlug, hours);
+      var data = await fetchRevisionPlan(hours);
       if (data.error) {
         output.innerHTML = '<p class="output-placeholder">कुछ गड़बड़ हुई: ' + data.error + '</p>';
         return;
       }
-      output.innerHTML = renderPlan(data, hours, subjectLabel);
+      output.innerHTML = renderPlan(data, hours);
       output.scrollTop = 0;
     } catch (err) {
       output.innerHTML = '<p class="output-placeholder">Network error: ' + err.message + '</p>';
     }
   });
+
+  /* ===========================================================
+     Subject Access Helper (subscription_status + subject_access se
+     decide karta hai user kis subject/kitne access ka haqdaar hai)
+     =========================================================== */
+  var SUBJECT_ACCESS_TO_SLUG = {
+    "Hindi": "hindi",
+    "English": "english",
+    "Maths": "math",
+    "Science": "science",
+    "Social-Science": "social-science",
+    "Sanskrit": "sanskrit"
+  };
+  var ALL_MOCK_SUBJECTS = [
+    { value: "math", label: "Math" },
+    { value: "science", label: "Science" },
+    { value: "english", label: "English" },
+    { value: "hindi", label: "Hindi" },
+    { value: "social-science", label: "सामाजिक विज्ञान" },
+    { value: "sanskrit", label: "Sanskrit" }
+  ];
+  // subject_access me chahe slug ho ("math"), chahe display label ho ("Math"/"Maths"),
+  // chahe kisi bhi case me ho — sabko case-insensitive match karta hai
+  function resolveSubjectSlug(accessValue) {
+    if (!accessValue) return null;
+    var v = String(accessValue).trim().toLowerCase();
+    var bySlug = ALL_MOCK_SUBJECTS.filter(function (s) { return s.value.toLowerCase() === v; });
+    if (bySlug.length) return bySlug[0].value;
+    var byLabel = ALL_MOCK_SUBJECTS.filter(function (s) { return s.label.toLowerCase() === v; });
+    if (byLabel.length) return byLabel[0].value;
+    for (var key in SUBJECT_ACCESS_TO_SLUG) {
+      if (key.toLowerCase() === v) return SUBJECT_ACCESS_TO_SLUG[key];
+    }
+    return null;
+  }
+  function getUserPlan() {
+    return window.userProfile || { subscription_status: "FREE" };
+  }
+  function hasActiveFreeTrial(plan) {
+    return !!(plan && plan.premium_free_until && new Date(plan.premium_free_until) > new Date());
+  }
+  function isEffectivelyPaidAll(plan) {
+    return plan.subscription_status === "PAID_ALL" || hasActiveFreeTrial(plan);
+  }
+  function getAllowedMockSubjects() {
+    var plan = getUserPlan();
+    if (isEffectivelyPaidAll(plan)) return ALL_MOCK_SUBJECTS;
+    if (plan.subscription_status === "PAID_SINGLE") {
+      var slug = resolveSubjectSlug(plan.subject_access);
+      var filtered = ALL_MOCK_SUBJECTS.filter(function (s) { return s.value === slug; });
+      return filtered.length ? filtered : ALL_MOCK_SUBJECTS; // fallback agar mapping na mile
+    }
+    return ALL_MOCK_SUBJECTS; // FREE users subject choose kar sakte hain, par question count limited hoga
+  }
 
   /* ===========================================================
      Mock Test — real, database-backed
@@ -1956,11 +2247,16 @@ img{ max-width:100%; display:block; }
   var mockTimeLeftSeconds = 0;
 
   async function callFn(name, body) {
+    // Asli logged-in user ka token bhejo taaki backend genuinely user ko identify kar sake
+    // (pehle hamesha static anon key jaati thi, jisse backend ko pata hi nahi chalta tha ki request kis user ki hai)
+    var sessionRes = await supabase.auth.getSession();
+    var userToken = (sessionRes.data.session && sessionRes.data.session.access_token) || SUPABASE_ANON;
+
     var res = await fetch(SUPABASE_FN_BASE + name, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer " + SUPABASE_ANON,
+        "Authorization": "Bearer " + userToken,
         "apikey": SUPABASE_ANON
       },
       body: JSON.stringify(body)
@@ -1975,24 +2271,36 @@ img{ max-width:100%; display:block; }
   }
 
   function showStartScreen() {
+    var allowedSubjects = getAllowedMockSubjects();
+    var plan = getUserPlan();
+    var isFree = !isEffectivelyPaidAll(plan) && plan.subscription_status !== "PAID_SINGLE";
+    var isSingleLocked = plan.subscription_status === "PAID_SINGLE" && allowedSubjects.length === 1;
+
+    var subjectOptionsHtml = allowedSubjects.map(function (s) {
+      return '<option value="' + s.value + '">' + s.label + '</option>';
+    }).join("");
+
+    var countOptionsHtml = isFree
+      ? '<option value="10">10 प्रश्न (Quick)</option>' +
+        '<option value="30" disabled>30 प्रश्न (Standard) 🔒 Upgrade करें</option>' +
+        '<option value="50" disabled>50 प्रश्न (Full) 🔒 Upgrade करें</option>'
+      : '<option value="10">10 प्रश्न (Quick)</option>' +
+        '<option value="30" selected>30 प्रश्न (Standard)</option>' +
+        '<option value="50">50 प्रश्न (Full)</option>';
+
     var html = '<div class="mock-result-card">' +
       '<div class="mock-result-head"><span>📝 Mock Test शुरू करें</span></div>' +
       '<div style="padding:16px 0;">' +
         '<label style="display:block;margin-bottom:6px;font-size:14px;">विषय चुनें</label>' +
-        '<select id="mockSubjectSelect" style="width:100%;padding:10px;border-radius:8px;margin-bottom:14px;">' +
-          '<option value="math">Math</option>' +
-          '<option value="science">Science</option>' +
-          '<option value="english">English</option>' +
-          '<option value="hindi">Hindi</option>' +
-          '<option value="social-science">सामाजिक विज्ञान</option>' +
-          '<option value="sanskrit">Sanskrit</option>' +
+        '<select id="mockSubjectSelect" style="width:100%;padding:10px;border-radius:8px;margin-bottom:14px;"' + (isSingleLocked ? ' disabled' : '') + '>' +
+          subjectOptionsHtml +
         '</select>' +
+        (isSingleLocked ? '<p style="font-size:12.5px;color:#64748B;margin:-8px 0 14px;">🔒 आपका Single Subject Pack सिर्फ इसी विषय के लिए है। बाकी विषयों के लिए Full Class 10 Pack लें।</p>' : '') +
         '<label style="display:block;margin-bottom:6px;font-size:14px;">कितने प्रश्न?</label>' +
         '<select id="mockCountSelect" style="width:100%;padding:10px;border-radius:8px;margin-bottom:14px;">' +
-          '<option value="10">10 प्रश्न (Quick)</option>' +
-          '<option value="30" selected>30 प्रश्न (Standard)</option>' +
-          '<option value="50">50 प्रश्न (Full)</option>' +
+          countOptionsHtml +
         '</select>' +
+        (isFree ? '<p style="font-size:12.5px;color:#64748B;margin:-8px 0 14px;">🔒 Free plan में सिर्फ 10 प्रश्न वाला Quick test मिलता है।</p>' : '') +
         '<button class="btn btn-solid btn-block" id="startMockTestBtn">🚀 Test शुरू करें</button>' +
       '</div>' +
     '</div>';
@@ -2109,7 +2417,12 @@ img{ max-width:100%; display:block; }
     document.getElementById("retakeMockTestBtn").addEventListener("click", showStartScreen);
   }
 
-  showStartScreen();
+  (async function () {
+    // Plan (FREE / PAID_SINGLE / PAID_ALL) load hone ka wait karo, warna
+    // window.userProfile abhi undefined hoga aur hamesha FREE jaisa dikhega
+    if (window.authCheckReady) { await window.authCheckReady; }
+    showStartScreen();
+  })();
 
   /* ===========================================================
      Student Dashboard
@@ -2731,8 +3044,138 @@ img{ max-width:100%; display:block; }
     });
   }
 
+  // Modal Open/Close
+function openSubjectModal() { document.getElementById("subjectModal").style.display = "flex"; }
+function closeSubjectModal() { document.getElementById("subjectModal").style.display = "none"; }
+
+var __paymentInProgress = false;
+
+// Main Payment Logic
+async function initiatePayment({ planType, amount, subjectName, description }) {
+    if (__paymentInProgress) { return; } // ek time par sirf ek hi request jaaye
+    __paymentInProgress = true;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { alert("Payment करने के लिए पहले Login करें!"); __paymentInProgress = false; return; }
+
+    const user = session.user;
+    const SUPABASE_FN_URL = "https://tphrdecdljxaqogocuxw.supabase.co/functions/v1/razorpay"; // Aapka supabase URL
+
+    try {
+        const orderRes = await fetch(`${SUPABASE_FN_URL}?action=createOrder`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ amount: amount, currency: "INR", receipt: "rcpt_" + Date.now() })
+        });
+
+        // Debug: hamesha actual response console me dekho
+        console.log("createOrder status:", orderRes.status);
+        let orderData;
+        try {
+            orderData = await orderRes.json();
+        } catch (parseErr) {
+            const rawText = await orderRes.text().catch(function(){ return ""; });
+            console.log("createOrder raw response:", rawText);
+            alert("Order generate नहीं हो पाया। Server ने valid response नहीं भेजा (status " + orderRes.status + ").");
+            return;
+        }
+        console.log("createOrder response:", orderData);
+
+        if (!orderRes.ok || !orderData.id) {
+            var reason = orderData.error || orderData.message || ("HTTP " + orderRes.status);
+            alert("Order generate नहीं हो पाया।\nReason: " + reason);
+            return;
+        }
+
+        const options = {
+            key: "rzp_test_TRpf2TP5RNF9iM", // Aapki Key ID
+            amount: orderData.amount,
+            currency: orderData.currency,
+            name: "Srrijan Ikshan",
+            description: description,
+            order_id: orderData.id,
+            prefill: { email: user.email },
+            handler: async function (response) {
+                const verifyRes = await fetch(`${SUPABASE_FN_URL}?action=verifyPayment`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                    body: JSON.stringify(response)
+                });
+                const verifyData = await verifyRes.json();
+
+                if (verifyData.success) {
+                    const { data: upsertResult, error: profileErr } = await supabase
+                        .from("profiles")
+                        .upsert(
+                            { id: user.id, subscription_status: planType, subject_access: subjectName },
+                            { onConflict: "id" }
+                        )
+                        .select();
+
+                    console.log("Profile upsert result:", upsertResult, "error:", profileErr);
+
+                    if (profileErr) {
+                        alert("Payment हो गया, लेकिन profile update करने में दिक्कत आई:\n" + profileErr.message + "\nSupport से contact करें (screenshot le lo).");
+                    } else {
+                        alert("🎉 Payment Successful!");
+                        window.location.reload();
+                    }
+                } else { alert("Payment verification failed!"); }
+            }
+        };
+        new Razorpay(options).open();
+    } catch (err) {
+        alert("Payment error: " + err.message);
+    } finally {
+        __paymentInProgress = false;
+    }
+}
+
+// --- Modal & Payment Global Functions ---
+window.openSubjectModal = function() {
+    var modal = document.getElementById("subjectModal");
+    if (modal) modal.style.display = "flex";
+};
+
+window.closeSubjectModal = function() {
+    var modal = document.getElementById("subjectModal");
+    if (modal) modal.style.display = "none";
+};
+
+window.proceedToSubjectPayment = function() {
+    var subjectEl = document.getElementById("selectedSubject");
+    var subject = subjectEl ? subjectEl.value : "General";
+    window.closeSubjectModal();
+    initiatePayment({ planType: "PAID_SINGLE", amount: 9900, subjectName: subject, description: "Single Subject - " + subject });
+};
+
+window.buyAllSubjectPack = function() {
+    initiatePayment({ planType: "PAID_ALL", amount: 59900, subjectName: null, description: "All Subjects Premium Pack" });
+};
+
 })();
 
 </script>
+<!-- Subject Selection Modal -->
+<div id="subjectModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:#fff; border-radius:14px; padding:24px; max-width:400px; width:90%; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+        <h3 style="margin-bottom:12px; font-size:18px; color:#0F172A;">विषय (Subject) चुनें</h3>
+        <p style="font-size:13.5px; color:#475569; margin-bottom:16px;">आप किस विषय के लिए Single Subject Pack खरीदना चाहते हैं?</p>
+        
+        <select id="selectedSubject" style="width:100%; padding:10px; border-radius:8px; border:1px solid #E2E8F0; font-size:14px; margin-bottom:20px;">
+            <option value="Hindi">Hindi</option>
+            <option value="English">English</option>
+            <option value="Maths">Math</option>
+            <option value="Science">Science</option>
+            <option value="Social-Science">Social Science</option>
+            <option value="Sanskrit">Sanskrit</option>
+        </select>
+        
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button onclick="closeSubjectModal()" style="padding:8px 16px; border-radius:8px; border:1px solid #E2E8F0; background:#fff; cursor:pointer; font-weight:600;">Cancel</button>
+            <button onclick="proceedToSubjectPayment()" style="padding:8px 16px; border-radius:8px; border:none; background:#2563EB; color:#fff; cursor:pointer; font-weight:600;">Proceed to Pay</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

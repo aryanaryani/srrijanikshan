@@ -6,6 +6,7 @@
     <title>Photo/PDF Study - Sriijan Ikshan</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-check.js"></script>
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
@@ -133,10 +134,10 @@
     </footer>
 
     <script>
-        var SUPABASE_URL = "https://tphrdecdljxaqogocuxw.supabase.co";
-        var SUPABASE_ANON_KEY = "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy";
-        var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+        // auth-check.js window.supabaseClient banati hai; "var" jaan-boojh kar
+        // use kiya hai (const/let nahi) kyunki agar yeh script kisi wajah se
+        // do baar chal jaaye to var kabhi SyntaxError nahi deta
+        var supabase = window.supabaseClient;
         pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
         var fileInput = document.getElementById("fileInput");
@@ -225,6 +226,10 @@
             var userQuestion = document.getElementById("userQuestion").value.trim();
 
             try {
+                // auth-check.js se supabase object automatically available hai
+                var SUPABASE_URL = "https://tphrdecdljxaqogocuxw.supabase.co";
+                var SUPABASE_ANON_KEY = "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy";
+                
                 var res = await fetch(SUPABASE_URL + "/functions/v1/analyze-study-image", {
                     method: "POST",
                     headers: {
@@ -302,6 +307,15 @@
             if (res.error) alert("Save नहीं हो पाया: " + res.error.message);
             else alert("✅ Library में save हो गया!");
         }
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            if (window.authCheckReady) { await window.authCheckReady; }
+            if (typeof hasAccess === "function" && !hasAccess('pdf_study')) {
+                showUpgradeAlert("Photo/PDF Study");
+                window.location.href = "index.html";
+            }
+        });
+
     </script>
 </body>
 </html>

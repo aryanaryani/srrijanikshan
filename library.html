@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-check.js"></script>
     <style>
         :root {
             --primary-color: #2563EB;
@@ -100,11 +101,10 @@
     </footer>
 
     <script>
-        var supabase = window.supabase.createClient(
-            "https://tphrdecdljxaqogocuxw.supabase.co",
-            "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy"
-        );
-
+        // auth-check.js window.supabaseClient banati hai; "var" jaan-boojh kar
+        // use kiya hai (const/let nahi) kyunki agar yeh script kisi wajah se
+        // do baar chal jaaye to var kabhi SyntaxError nahi deta
+        var supabase = window.supabaseClient;
         var content = document.getElementById("libraryContent");
         var currentUserId = null;
         var activeTab = "question";
@@ -245,6 +245,15 @@
         }
 
         init();
+        
+        document.addEventListener("DOMContentLoaded", async () => {
+            if (window.authCheckReady) { await window.authCheckReady; }
+            if (typeof hasAccess === "function" && !hasAccess('library')) {
+                showUpgradeAlert("Library");
+                window.location.href = "index.html";
+            }
+        });
+
     </script>
 </body>
 </html>

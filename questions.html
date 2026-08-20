@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-check.js"></script>
     <style>
         :root {
             --primary-color: #2563EB;
@@ -85,26 +86,26 @@
         .pagination button:disabled { opacity: .4; cursor: not-allowed; }
         .pagination span { font-size: 14px; color: var(--text-light); }
         .notes-tab-btn {
-    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border-color);
-    background: var(--white); cursor: pointer; font-size: 13px; font-weight: 600;
-    white-space: nowrap; color: var(--text-light);
-}
-.notes-tab-btn.active { background: var(--primary-color); color: var(--white); border-color: var(--primary-color); }
-.flashcard {
-    perspective: 1000px; height: 150px; margin-bottom: 14px; cursor: pointer;
-}
-.flashcard-inner {
-    position: relative; width: 100%; height: 100%; transition: transform .5s;
-    transform-style: preserve-3d;
-}
-.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
-.flashcard-front, .flashcard-back {
-    position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
-    border-radius: 12px; display: flex; align-items: center; justify-content: center;
-    padding: 16px; text-align: center; font-weight: 600; font-size: 15px;
-}
-.flashcard-front { background: var(--primary-color); color: var(--white); }
-.flashcard-back { background: #ECFDF5; color: var(--text-dark); transform: rotateY(180deg); font-weight: 500; font-size: 14px; }
+            padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border-color);
+            background: var(--white); cursor: pointer; font-size: 13px; font-weight: 600;
+            white-space: nowrap; color: var(--text-light);
+        }
+        .notes-tab-btn.active { background: var(--primary-color); color: var(--white); border-color: var(--primary-color); }
+        .flashcard {
+            perspective: 1000px; height: 150px; margin-bottom: 14px; cursor: pointer;
+        }
+        .flashcard-inner {
+            position: relative; width: 100%; height: 100%; transition: transform .5s;
+            transform-style: preserve-3d;
+        }
+        .flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+        .flashcard-front, .flashcard-back {
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+            border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            padding: 16px; text-align: center; font-weight: 600; font-size: 15px;
+        }
+        .flashcard-front { background: var(--primary-color); color: var(--white); }
+        .flashcard-back { background: #ECFDF5; color: var(--text-dark); transform: rotateY(180deg); font-weight: 500; font-size: 14px; }
 
         .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); }
 
@@ -200,10 +201,10 @@
     </footer>
 
     <script>
-        var SUPABASE_URL = "https://tphrdecdljxaqogocuxw.supabase.co";
-        var SUPABASE_ANON_KEY = "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy";
-        var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+        // auth-check.js window.supabaseClient banati hai; "var" jaan-boojh kar
+        // use kiya hai (const/let nahi) kyunki agar yeh script kisi wajah se
+        // do baar chal jaaye to var kabhi SyntaxError nahi deta
+        var supabase = window.supabaseClient;
         var PAGE_SIZE = 20;
         var currentPage = 0;
         var totalCount = 0;
@@ -235,14 +236,42 @@
             return "Long Answer";
         }
 
+        // Subject_access wali value (jaise "Maths") aur subjects table ke name se match karta hai
+        function subjectMatchesAccess(subjectName, accessValue) {
+            if (!subjectName || !accessValue) return false;
+            return subjectName.trim().toLowerCase() === accessValue.trim().toLowerCase();
+        }
+
         async function loadSubjects() {
             var res = await supabase.from("subjects").select("id, name, slug").order("id");
-            (res.data || []).forEach(function (s) {
+            var allSubjects = res.data || [];
+
+            var plan = window.userProfile || { subscription_status: "FREE" };
+            var allowedSubjects = allSubjects;
+
+            if (plan.subscription_status === "PAID_SINGLE" && plan.subject_access) {
+                var filtered = allSubjects.filter(function (s) {
+                    return subjectMatchesAccess(s.name, plan.subject_access);
+                });
+                if (filtered.length) allowedSubjects = filtered;
+            }
+
+            allowedSubjects.forEach(function (s) {
                 var opt = document.createElement("option");
                 opt.value = s.id;
                 opt.textContent = s.name;
                 subjectFilter.appendChild(opt);
             });
+
+            // Single-subject wale user ke liye dropdown lock karke seedha unka subject load kar do
+            if (plan.subscription_status === "PAID_SINGLE" && allowedSubjects.length === 1) {
+                subjectFilter.value = allowedSubjects[0].id;
+                subjectFilter.disabled = true;
+                var lockNote = document.createElement("p");
+                lockNote.style.cssText = "font-size:12.5px;color:var(--text-light);margin-top:6px;";
+                lockNote.textContent = "🔒 आपका Single Subject Pack सिर्फ " + allowedSubjects[0].name + " के लिए है।";
+                subjectFilter.parentElement.appendChild(lockNote);
+            }
         }
 
         async function loadChapters(subjectId) {
@@ -397,14 +426,19 @@
         });
 
         async function init() {
+            if (window.authCheckReady) { await window.authCheckReady; } // userProfile load hone ka wait karo
             await loadSubjects();
             var params = new URLSearchParams(window.location.search);
             var subjectId = params.get("subject");
             var chapterId = params.get("chapter");
-            if (subjectId) {
+            if (subjectId && !subjectFilter.disabled) {
                 subjectFilter.value = subjectId;
                 await loadChapters(subjectId);
                 if (chapterId) chapterFilter.value = chapterId;
+                loadQuestions();
+            } else if (subjectFilter.value) {
+                // PAID_SINGLE case: loadSubjects() ne already select kar diya, ab chapters+questions load karo
+                await loadChapters(subjectFilter.value);
                 loadQuestions();
             }
         }
@@ -428,7 +462,10 @@
         }
 
         init();
+        var SUPABASE_URL = "https://tphrdecdljxaqogocuxw.supabase.co";
+        var SUPABASE_ANON_KEY = "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy";
         var SUPABASE_FN_BASE = SUPABASE_URL + "/functions/v1/";
+        
         document.getElementById("openNotesBtn").addEventListener("click", function () {
             var panel = document.getElementById("notesPanel");
             panel.style.display = panel.style.display === "none" ? "block" : "none";
@@ -521,6 +558,15 @@
             document.getElementById("openNotesBtn").style.display = subjectFilter.value ? "inline-block" : "none";
             document.getElementById("notesPanel").style.display = "none";
         });
+        
+        document.addEventListener("DOMContentLoaded", async () => {
+            if (window.authCheckReady) { await window.authCheckReady; }
+            if (typeof hasAccess === "function" && !hasAccess('question_bank')) {
+                showUpgradeAlert("Question Bank");
+                window.location.href = "index.html";
+            }
+        });
+
     </script>
 </body>
 </html>
