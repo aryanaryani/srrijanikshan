@@ -1612,6 +1612,13 @@ img{ max-width:100%; display:block; }
   var SUPABASE_ANON_KEY = "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy";
   var supabase = window.supabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  // Referral link (aur kahin bhi shareable public link chahiye ho) hamesha isi
+  // fixed production URL se banegi — window.location.origin use nahi karte,
+  // kyunki wo VS Code Live Server (127.0.0.1), Vercel preview, aur Capacitor
+  // app (localhost / capacitor://localhost, Play Store wali build me bhi)
+  // har jagah alag-alag value deta hai jo doosre users ke liye kaam nahi karta
+  var SITE_URL = "https://srrijanikshan.vercel.app/";
+
   var headerActions = document.getElementById("headerActions");
   var navLoginBtn = document.getElementById("navLoginBtn");
   var navSignupBtn = document.getElementById("navSignupBtn");
@@ -1802,7 +1809,7 @@ img{ max-width:100%; display:block; }
       var existingPanel = document.getElementById("referralSharePanel");
       if (existingPanel) existingPanel.remove();
 
-      var link = window.location.origin + window.location.pathname + "?ref=" + profile.referral_code;
+      var link = SITE_URL + "?ref=" + profile.referral_code;
       var count = profile.referral_count || 0;
       var waText = encodeURIComponent("Srrijan Ikshan pe Bihar Board Class 10 ki free study kit try karo! " + link);
 
@@ -3115,7 +3122,7 @@ async function initiatePayment({ planType, amount, subjectName, description, pro
         }
 
         const options = {
-            key: "rzp_test_TRpf2TP5RNF9iM", // Aapki Key ID
+            key: "rzp_live_TSJ7e4DCS23qCo", // Aapki Key ID
             amount: orderData.amount,
             currency: orderData.currency,
             name: "Srrijan Ikshan",
