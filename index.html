@@ -1319,7 +1319,7 @@ img{ max-width:100%; display:block; }
 
         <div class="price-card reveal-up" id="priceCardLastMinute">
           <h3>Last-Minute Pack</h3>
-          <p class="price-amt">₹79</p>
+          <p class="price-amt">₹1</p>
           <ul class="price-features">
             <li>Most Expected Sections</li>
             <li>1-Day Revision Mode</li>
@@ -3267,7 +3267,7 @@ window.buyAllSubjectPack = function() {
 window.buyLastMinutePack = function() {
     var sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     initiatePayment({
-        amount: 7900,
+        amount: 100,
         description: "Last-Minute Pack (7 din — 1-Day Revision Mode)",
         profileUpdate: { last_minute_expires_at: sevenDaysLater }
     });
