@@ -1454,6 +1454,17 @@ img{ max-width:100%; display:block; }
     </form>
     <p class="modal-switch">पहले से खाता है? <button data-modal-switch="login">लॉगिन करें</button></p>
   </div>
+  <div class="modal-box" id="phoneModal" hidden style="max-width:400px;">
+    <button class="modal-close" data-modal-close>×</button>
+    <p class="eyebrow">Payment से पहले</p>
+    <h3>Mobile Number डालें</h3>
+    <p style="font-size:.85rem;color:rgba(0,0,0,.6);margin:6px 0 14px;">UPI payment के लिए ज़रूरी है।</p>
+    <form class="modal-form" id="phoneForm">
+      <label>Mobile Number<input type="tel" name="phone" id="phoneInput" placeholder="10-अंकों का नंबर" required maxlength="10" inputmode="numeric"></label>
+      <p class="modal-error" id="phoneError" hidden></p>
+      <button class="btn btn-solid btn-block" type="submit">Confirm करें</button>
+    </form>
+  </div>
   <div class="modal-box" id="weakTopicModal" hidden style="max-width:600px;">
     <button class="modal-close" data-modal-close>×</button>
     <p class="eyebrow">🎯 Weak Topic Trainer</p>
@@ -2847,6 +2858,7 @@ img{ max-width:100%; display:block; }
      Weak Topic Trainer
      =========================================================== */
   modals.weakTopic = document.getElementById("weakTopicModal");
+  modals.phonePrompt = document.getElementById("phoneModal");
   var currentWeakTopicSession = null;
 
   window.startWeakTopicPractice = async function (chapterId, subjectId, chapterName) {
@@ -3067,6 +3079,45 @@ function closeSubjectModal() { document.getElementById("subjectModal").style.dis
 var __paymentInProgress = false;
 
 // Main Payment Logic
+// Phone number ek chhote modal se maangta hai (prompt() nahi — wo Capacitor
+// app ki WebView me kaam nahi karta, hamesha silently null return karta hai)
+function askPhoneNumber() {
+  return new Promise(function (resolve) {
+    var phoneForm = document.getElementById("phoneForm");
+    var phoneInput = document.getElementById("phoneInput");
+    var phoneError = document.getElementById("phoneError");
+    var closeBtn = document.querySelector("#phoneModal [data-modal-close]");
+
+    phoneError.hidden = true;
+    phoneInput.value = "";
+    openModal("phonePrompt");
+    setTimeout(function () { phoneInput.focus(); }, 100);
+
+    function cleanup() {
+      phoneForm.removeEventListener("submit", onSubmit);
+      closeBtn.removeEventListener("click", onCancel);
+    }
+    function onSubmit(e) {
+      e.preventDefault();
+      var digits = phoneInput.value.replace(/\D/g, "").slice(-10);
+      if (digits.length !== 10) {
+        phoneError.textContent = "सही 10-अंकों वाला mobile number डालें।";
+        phoneError.hidden = false;
+        return;
+      }
+      cleanup();
+      closeModal();
+      resolve(digits);
+    }
+    function onCancel() {
+      cleanup();
+      resolve(null);
+    }
+    phoneForm.addEventListener("submit", onSubmit);
+    closeBtn.addEventListener("click", onCancel);
+  });
+}
+
 async function initiatePayment({ planType, amount, subjectName, description, profileUpdate }) {
     if (__paymentInProgress) { return; } // ek time par sirf ek hi request jaaye
     __paymentInProgress = true;
@@ -3100,9 +3151,8 @@ async function initiatePayment({ planType, amount, subjectName, description, pro
     // UPI live payments ke liye phone number zaroori hai (RBI/NPCI requirement).
     // Agar profile me pehle se save nahi hai to yahin ek baar poochh lo aur save kar do.
     if (!userPhone) {
-        var enteredPhone = prompt("UPI payment ke liye अपना 10-अंकों वाला mobile number डालें:");
-        if (enteredPhone) enteredPhone = enteredPhone.replace(/\D/g, "").slice(-10);
-        if (!enteredPhone || enteredPhone.length !== 10) {
+        var enteredPhone = await askPhoneNumber();
+        if (!enteredPhone) {
             alert("सही 10-अंकों वाला mobile number ज़रूरी है payment के लिए।");
             __paymentInProgress = false;
             return;
