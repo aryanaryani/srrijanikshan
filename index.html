@@ -1677,12 +1677,13 @@ img{ max-width:100%; display:block; }
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("subscription_status, premium_free_until")
+        .select("subscription_status, premium_free_until, last_minute_expires_at")
         .eq("id", user.id)
         .maybeSingle();
 
       var accountType = profile ? profile.subscription_status : "FREE";
       var hasFreeTrial = profile && profile.premium_free_until && new Date(profile.premium_free_until) > new Date();
+      var hasActiveLastMinute = profile && profile.last_minute_expires_at && new Date(profile.last_minute_expires_at) > new Date();
 
       if (accountType === "PAID_ALL" || hasFreeTrial) {
         // Sab kuch mil chuka hai (1-Day Revision Mode sahit, ya referral wala 7-din free trial chal raha hai) -> pura Pricing
@@ -1699,11 +1700,11 @@ img{ max-width:100%; display:block; }
         // Single subject pack khareed liya -> uska card hata do, baaki rakho
         if (cardSingle) cardSingle.style.display = "none";
         if (cardFull) cardFull.style.display = "";
-        if (cardLastMinute) cardLastMinute.style.display = "";
+        if (cardLastMinute) cardLastMinute.style.display = hasActiveLastMinute ? "none" : "";
       } else {
         if (cardSingle) cardSingle.style.display = "";
         if (cardFull) cardFull.style.display = "";
-        if (cardLastMinute) cardLastMinute.style.display = "";
+        if (cardLastMinute) cardLastMinute.style.display = hasActiveLastMinute ? "none" : "";
       }
     } catch (e) {
       console.error("Pricing visibility check failed:", e);
