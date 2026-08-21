@@ -3077,11 +3077,13 @@ async function initiatePayment({ planType, amount, subjectName, description, pro
     const user = session.user;
     const SUPABASE_FN_URL = "https://tphrdecdljxaqogocuxw.supabase.co/functions/v1/razorpay"; // Aapka supabase URL
 
-    // ---- Referral se mila wallet credit ho to discount apply karo ----
+    // ---- Referral se mila wallet credit + saved phone (agar hai) ek saath fetch karo ----
     var creditUsed = 0;
+    var userPhone = "";
     try {
-        const { data: walletProfile } = await supabase.from("profiles").select("wallet_credit").eq("id", user.id).maybeSingle();
+        const { data: walletProfile } = await supabase.from("profiles").select("wallet_credit, phone").eq("id", user.id).maybeSingle();
         var availableCredit = (walletProfile && walletProfile.wallet_credit) || 0;
+        userPhone = (walletProfile && walletProfile.phone) || "";
         if (availableCredit > 0) {
             var creditInPaise = Math.round(availableCredit * 100);
             var maxDiscountable = amount - 100; // Razorpay minimum ₹1 (100 paise) se neeche order nahi ja sakta
@@ -3093,6 +3095,24 @@ async function initiatePayment({ planType, amount, subjectName, description, pro
         }
     } catch (e) {
         console.error("Wallet credit check failed:", e);
+    }
+
+    // UPI live payments ke liye phone number zaroori hai (RBI/NPCI requirement).
+    // Agar profile me pehle se save nahi hai to yahin ek baar poochh lo aur save kar do.
+    if (!userPhone) {
+        var enteredPhone = prompt("UPI payment ke liye अपना 10-अंकों वाला mobile number डालें:");
+        if (enteredPhone) enteredPhone = enteredPhone.replace(/\D/g, "").slice(-10);
+        if (!enteredPhone || enteredPhone.length !== 10) {
+            alert("सही 10-अंकों वाला mobile number ज़रूरी है payment के लिए।");
+            __paymentInProgress = false;
+            return;
+        }
+        userPhone = enteredPhone;
+        try {
+            await supabase.from("profiles").upsert({ id: user.id, phone: userPhone }, { onConflict: "id" });
+        } catch (e) {
+            console.error("Phone save failed:", e);
+        }
     }
 
     try {
@@ -3128,7 +3148,7 @@ async function initiatePayment({ planType, amount, subjectName, description, pro
             name: "Srrijan Ikshan",
             description: description,
             order_id: orderData.id,
-            prefill: { email: user.email },
+            prefill: { email: user.email, contact: userPhone },
             handler: async function (response) {
                 const verifyRes = await fetch(`${SUPABASE_FN_URL}?action=verifyPayment`, {
                     method: 'POST',
