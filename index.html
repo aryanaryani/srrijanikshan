@@ -1225,9 +1225,9 @@ img{ max-width:100%; display:block; }
           <div style="display:flex; justify-content:center; align-items:center; width:100%; padding-top:30px; border-top:1px solid var(--border-color); flex-wrap:wrap;">
               <img src="lock.png" alt="Founder" height="100px">
           </div>
-          <p style="font-weight:700; margin-bottom:6px;">1-Day Revision Mode सिर्फ Full Class 10 Pack (all-subject) members ke liye hai</p>
-          <p style="color:rgba(245,239,224,.72); font-size:.9rem; margin-bottom:18px;">Yeh feature sabhi subjects ko mix karke crash plan banata hai, isliye sirf full-access plan me unlock hota hai.</p>
-          <a href="#pricing" class="btn btn-solid">Full Class 10 Pack देखें</a>
+          <p style="font-weight:700; margin-bottom:6px;">1-Day Revision Mode Full Class 10 Pack ya Last-Minute Pack (7 din) wale members ke liye hai</p>
+          <p style="color:rgba(245,239,224,.72); font-size:.9rem; margin-bottom:18px;">Yeh feature sabhi subjects ko mix karke crash plan banata hai. Full Class 10 Pack se hamesha ke liye unlock ho jaata hai, ya Last-Minute Pack se sirf 7 din ke liye.</p>
+          <a href="#pricing" class="btn btn-solid">Plans देखें</a>
         </div>
       </div>
     </div>
@@ -1326,7 +1326,7 @@ img{ max-width:100%; display:block; }
             <li>Final Mock Test</li>
             <li>7 दिनों के लिए</li>
           </ul>
-          <button class="btn btn-outline btn-block" data-modal-open="signup">चुनें</button>
+          <button class="btn btn-outline btn-block" onclick="buyLastMinutePack()">चुनें</button>
         </div>
       </div>
     </div>
@@ -1604,9 +1604,13 @@ img{ max-width:100%; display:block; }
   /* ===========================================================
      Supabase Auth
      =========================================================== */
+  // NOTE: yahan naya client NAHI banate — auth-check.js pehle se hi
+  // window.supabaseClient bana chuka hai. Do alag clients banane se
+  // "Multiple GoTrueClient instances" warning aur session-related
+  // races (jaise "issued in the future" wala warning) aate the.
   var SUPABASE_URL = "https://tphrdecdljxaqogocuxw.supabase.co";
   var SUPABASE_ANON_KEY = "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy";
-  var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  var supabase = window.supabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   var headerActions = document.getElementById("headerActions");
   var navLoginBtn = document.getElementById("navLoginBtn");
@@ -2086,13 +2090,18 @@ img{ max-width:100%; display:block; }
     hoursValue.textContent = hoursRange.value;
   });
 
-  // Sirf PAID_ALL (Full Class 10 Pack) wale members ya referral se mile
-  // free-trial wale ke liye unlock — kyunki yeh feature sabhi subjects
-  // mix karke ek crash plan banata hai
+  // PAID_ALL, referral free-trial, ya active Last-Minute Pack (7 din) wale
+  // members ke liye unlock — kyunki yeh feature sabhi subjects mix karke ek
+  // crash plan banata hai
+  function hasRevisionAccess(plan) {
+    if (isEffectivelyPaidAll(plan)) return true;
+    if (plan.last_minute_expires_at && new Date(plan.last_minute_expires_at) > new Date()) return true;
+    return false;
+  }
   (async function () {
     if (window.authCheckReady) { await window.authCheckReady; }
     var plan = window.userProfile || { subscription_status: "FREE" };
-    if (!isEffectivelyPaidAll(plan)) {
+    if (!hasRevisionAccess(plan)) {
       if (revisionControls) revisionControls.style.display = "none";
       if (revisionOutputEl) revisionOutputEl.style.display = "none";
       if (revisionLock) revisionLock.style.display = "block";
@@ -3051,7 +3060,7 @@ function closeSubjectModal() { document.getElementById("subjectModal").style.dis
 var __paymentInProgress = false;
 
 // Main Payment Logic
-async function initiatePayment({ planType, amount, subjectName, description }) {
+async function initiatePayment({ planType, amount, subjectName, description, profileUpdate }) {
     if (__paymentInProgress) { return; } // ek time par sirf ek hi request jaaye
     __paymentInProgress = true;
 
@@ -3060,6 +3069,24 @@ async function initiatePayment({ planType, amount, subjectName, description }) {
 
     const user = session.user;
     const SUPABASE_FN_URL = "https://tphrdecdljxaqogocuxw.supabase.co/functions/v1/razorpay"; // Aapka supabase URL
+
+    // ---- Referral se mila wallet credit ho to discount apply karo ----
+    var creditUsed = 0;
+    try {
+        const { data: walletProfile } = await supabase.from("profiles").select("wallet_credit").eq("id", user.id).maybeSingle();
+        var availableCredit = (walletProfile && walletProfile.wallet_credit) || 0;
+        if (availableCredit > 0) {
+            var creditInPaise = Math.round(availableCredit * 100);
+            var maxDiscountable = amount - 100; // Razorpay minimum ₹1 (100 paise) se neeche order nahi ja sakta
+            creditUsed = Math.min(creditInPaise, Math.max(0, maxDiscountable));
+            if (creditUsed > 0) {
+                amount = amount - creditUsed;
+                alert("🎉 आपके referral wallet से ₹" + (creditUsed / 100).toFixed(2) + " का discount apply हो गया!");
+            }
+        }
+    } catch (e) {
+        console.error("Wallet credit check failed:", e);
+    }
 
     try {
         const orderRes = await fetch(`${SUPABASE_FN_URL}?action=createOrder`, {
@@ -3104,12 +3131,19 @@ async function initiatePayment({ planType, amount, subjectName, description }) {
                 const verifyData = await verifyRes.json();
 
                 if (verifyData.success) {
+                    const upsertPayload = profileUpdate
+                        ? Object.assign({ id: user.id }, profileUpdate)
+                        : { id: user.id, subscription_status: planType, subject_access: subjectName };
+
+                    // Agar wallet credit use hua tha, to use ghata do (server-side verify nahi hai,
+                    // isliye low-value ₹50 tak ka hi discount rakha hai — tamper-risk kam hai)
+                    if (creditUsed > 0) {
+                        upsertPayload.wallet_credit = Math.max(0, availableCredit - (creditUsed / 100));
+                    }
+
                     const { data: upsertResult, error: profileErr } = await supabase
                         .from("profiles")
-                        .upsert(
-                            { id: user.id, subscription_status: planType, subject_access: subjectName },
-                            { onConflict: "id" }
-                        )
+                        .upsert(upsertPayload, { onConflict: "id" })
                         .select();
 
                     console.log("Profile upsert result:", upsertResult, "error:", profileErr);
@@ -3151,6 +3185,15 @@ window.proceedToSubjectPayment = function() {
 
 window.buyAllSubjectPack = function() {
     initiatePayment({ planType: "PAID_ALL", amount: 59900, subjectName: null, description: "All Subjects Premium Pack" });
+};
+
+window.buyLastMinutePack = function() {
+    var sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    initiatePayment({
+        amount: 7900,
+        description: "Last-Minute Pack (7 din — 1-Day Revision Mode)",
+        profileUpdate: { last_minute_expires_at: sevenDaysLater }
+    });
 };
 
 })();

@@ -41,7 +41,7 @@ if (!window.__authCheckLoaded) {
                 if (session && session.user) {
                     const { data: profile } = await supabase
                         .from("profiles")
-                        .select("subscription_status, subject_access, premium_free_until")
+                        .select("subscription_status, subject_access, premium_free_until, last_minute_expires_at")
                         .eq("id", session.user.id)
                         .maybeSingle();
 
