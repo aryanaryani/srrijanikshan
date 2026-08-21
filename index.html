@@ -3165,11 +3165,29 @@ async function initiatePayment({ planType, amount, subjectName, description, pro
         }
     }
 
+    // Yeh payload webhook ke "notes" me bhi jayega (server-side, reliable unlock ke liye)
+    // aur client-side handler me bhi reuse hoga (fast/turant UI feedback ke liye).
+    // Dono jagah EXACT SAME object use hota hai, taaki kabhi mismatch na ho.
+    var upsertPayload = profileUpdate
+        ? Object.assign({}, profileUpdate)
+        : { subscription_status: planType, subject_access: subjectName };
+    if (creditUsed > 0) {
+        upsertPayload.wallet_credit = Math.max(0, availableCredit - (creditUsed / 100));
+    }
+
     try {
         const orderRes = await fetch(`${SUPABASE_FN_URL}?action=createOrder`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-            body: JSON.stringify({ amount: amount, currency: "INR", receipt: "rcpt_" + Date.now() })
+            body: JSON.stringify({
+                amount: amount,
+                currency: "INR",
+                receipt: "rcpt_" + Date.now(),
+                notes: {
+                    user_id: user.id,
+                    profile_update: JSON.stringify(upsertPayload)
+                }
+            })
         });
 
         // Debug: hamesha actual response console me dekho
@@ -3208,25 +3226,17 @@ async function initiatePayment({ planType, amount, subjectName, description, pro
                 const verifyData = await verifyRes.json();
 
                 if (verifyData.success) {
-                    const upsertPayload = profileUpdate
-                        ? Object.assign({ id: user.id }, profileUpdate)
-                        : { id: user.id, subscription_status: planType, subject_access: subjectName };
-
-                    // Agar wallet credit use hua tha, to use ghata do (server-side verify nahi hai,
-                    // isliye low-value ₹50 tak ka hi discount rakha hai — tamper-risk kam hai)
-                    if (creditUsed > 0) {
-                        upsertPayload.wallet_credit = Math.max(0, availableCredit - (creditUsed / 100));
-                    }
+                    const finalPayload = Object.assign({ id: user.id }, upsertPayload);
 
                     const { data: upsertResult, error: profileErr } = await supabase
                         .from("profiles")
-                        .upsert(upsertPayload, { onConflict: "id" })
+                        .upsert(finalPayload, { onConflict: "id" })
                         .select();
 
                     console.log("Profile upsert result:", upsertResult, "error:", profileErr);
 
                     if (profileErr) {
-                        alert("Payment हो गया, लेकिन profile update करने में दिक्कत आई:\n" + profileErr.message + "\nSupport से contact करें (screenshot le lo).");
+                        alert("Payment ho gaya! Access thodi der me automatically unlock ho jayega (background me confirm ho raha hai). Agar 5 minute me bhi na ho to Support se contact karein.");
                     } else {
                         alert("🎉 Payment Successful!");
                         window.location.reload();
