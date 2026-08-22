@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="hi">
 <head>
-<!-- Google tag (gtag.js) -->
+  <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LR9D5H7NS0"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -17,7 +17,6 @@
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Hind:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="verify" href="google44cbbc7a01b2ed18.html">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="auth-check.js"></script>
 <!-- Razorpay Checkout Script -->
@@ -3205,33 +3204,72 @@ async function initiatePayment({ planKey, subjectName, description }) {
             alert("🎉 आपके referral wallet से ₹" + (orderData.discount_applied / 100).toFixed(2) + " का discount apply हो गया!");
         }
 
-        const options = {
-            key: "rzp_live_TSJ7e4DCS23qCo", // Aapki Key ID
-            amount: orderData.amount,
-            currency: orderData.currency,
-            name: "Srrijan Ikshan",
-            description: description,
-            order_id: orderData.id,
-            prefill: { email: user.email, contact: userPhone },
-            handler: async function (response) {
-                const verifyRes = await fetch(`${SUPABASE_FN_URL}?action=verifyPayment`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-                    body: JSON.stringify(response)
-                });
-                const verifyData = await verifyRes.json();
+        // Payment verify karke access unlock karwane ka common logic (native aur web
+        // dono flows isi ko use karte hain, taaki duplicate na ho)
+        async function verifyAndFinish(paymentResponse) {
+            const verifyRes = await fetch(`${SUPABASE_FN_URL}?action=verifyPayment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                body: JSON.stringify(paymentResponse)
+            });
+            const verifyData = await verifyRes.json();
 
-                // Access ab server (verifyPayment + webhook backup) khud unlock karta hai —
-                // client yahan koi profile upsert nahi karta (security fix)
-                if (verifyData.success) {
-                    alert("🎉 Payment Successful!");
-                    window.location.reload();
-                } else {
-                    alert("Payment verification failed!");
-                }
+            // Access ab server (verifyPayment + webhook backup) khud unlock karta hai —
+            // client yahan koi profile upsert nahi karta (security fix)
+            if (verifyData.success) {
+                alert("🎉 Payment Successful!");
+                window.location.reload();
+            } else {
+                alert("Payment verification failed!");
             }
-        };
-        new Razorpay(options).open();
+        }
+
+        const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+        const nativeCheckout = isNativeApp && window.Capacitor.Plugins && window.Capacitor.Plugins.Checkout;
+
+        if (nativeCheckout) {
+            // App ke andar — Razorpay ka NATIVE Capacitor plugin use karo (web checkout.js
+            // ki jagah). Isse UPI apps (GPay/PhonePe/Paytm) properly detect + open hote hain,
+            // jo WebView ke andar chal rahe web checkout.js me kabhi nahi ho paata tha.
+            try {
+                const data = await window.Capacitor.Plugins.Checkout.open({
+                    key: "rzp_live_TSJ7e4DCS23qCo",
+                    amount: String(orderData.amount),
+                    currency: orderData.currency,
+                    name: "Srrijan Ikshan",
+                    description: description,
+                    order_id: orderData.id,
+                    prefill: { email: user.email, contact: "+91" + userPhone }
+                });
+                var paymentResponse = data && data.response;
+                if (typeof paymentResponse === "string") {
+                    try { paymentResponse = JSON.parse(paymentResponse); } catch (e) { /* already object */ }
+                }
+                await verifyAndFinish(paymentResponse);
+            } catch (err) {
+                var msg = "Payment cancel ho gaya ya fail ho gaya.";
+                try {
+                    var errObj = JSON.parse(err && (err.code || err.message) || "{}");
+                    if (errObj.description) msg = errObj.description;
+                } catch (e2) { /* ignore parse failure, use default msg */ }
+                alert(msg);
+            }
+        } else {
+            // Website/browser — jo pehle se hai, wahi web checkout.js
+            const options = {
+                key: "rzp_live_TSJ7e4DCS23qCo", // Aapki Key ID
+                amount: orderData.amount,
+                currency: orderData.currency,
+                name: "Srrijan Ikshan",
+                description: description,
+                order_id: orderData.id,
+                prefill: { email: user.email, contact: "+91" + userPhone },
+                handler: async function (response) {
+                    await verifyAndFinish(response);
+                }
+            };
+            new Razorpay(options).open();
+        }
     } catch (err) {
         alert("Payment error: " + err.message);
     } finally {
