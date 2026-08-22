@@ -1936,6 +1936,17 @@ img{ max-width:100%; display:block; }
   // App par wapas lautne par Session set karne ka listener
   if (window.Capacitor?.Plugins?.App) {
     window.Capacitor.Plugins.App.addListener('appUrlOpen', async function (data) {
+      if (data.url && data.url.includes("payment-success")) {
+        // Browser me payment complete ho gaya (webhook already background me access
+        // unlock kar chuka hai) — bas browser band karke app refresh kar do
+        if (window.Capacitor?.Plugins?.Browser) {
+          await window.Capacitor.Plugins.Browser.close();
+        }
+        alert("🎉 Payment Successful!");
+        window.location.reload();
+        return;
+      }
+
       if (data.url && data.url.includes("google-auth")) {
         // Browser window band karein
         if (window.Capacitor?.Plugins?.Browser) {
@@ -3128,15 +3139,48 @@ function askPhoneNumber() {
   });
 }
 
-async function initiatePayment({ planKey, subjectName, description }) {
+async function initiatePayment({ planKey, subjectName, description, overrideToken }) {
     if (__paymentInProgress) { return; } // ek time par sirf ek hi request jaaye
     __paymentInProgress = true;
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { alert("Payment करने के लिए पहले Login करें!"); __paymentInProgress = false; return; }
+    var accessToken, user;
+    if (overrideToken) {
+        // Yeh call browser tab se aayi hai (app ne payment link kholi thi) — session
+        // yahan local nahi hai, isliye diya gaya token seedha use karte hain
+        const { data: userData } = await supabase.auth.getUser(overrideToken);
+        user = userData && userData.user;
+        if (!user) {
+            alert("Payment link expired ho gaya. Kripya app me dobara try karein.");
+            __paymentInProgress = false;
+            return;
+        }
+        accessToken = overrideToken;
+    } else {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { alert("Payment करने के लिए पहले Login करें!"); __paymentInProgress = false; return; }
+        user = session.user;
+        accessToken = session.access_token;
+    }
 
-    const user = session.user;
     const SUPABASE_FN_URL = "https://tphrdecdljxaqogocuxw.supabase.co/functions/v1/razorpay"; // Aapka supabase URL
+    const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
+    // App ke andar se buy dabaya (browser se nahi) — UPI native WebView me reliably kaam
+    // nahi karta (Razorpay native plugin ke saath bhi nahi), isliye asli payment system
+    // browser me kholte hain (jahan UPI/QR pehle se proven sahi chalta hai). Payment yahi
+    // is page par (URL params se, neeche bootstrap code me) hoga, phir app par redirect.
+    if (isNativeApp && !overrideToken) {
+        var payUrl = SITE_URL + "?buyPlan=" + encodeURIComponent(planKey)
+            + (subjectName ? "&buySubject=" + encodeURIComponent(subjectName) : "")
+            + "&buyToken=" + encodeURIComponent(accessToken);
+        if (window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+            await window.Capacitor.Plugins.Browser.open({ url: payUrl });
+        } else {
+            window.open(payUrl, "_blank");
+        }
+        __paymentInProgress = false;
+        return;
+    }
 
     // SECURITY: ab price aur "kya unlock hoga" client kabhi nahi bhejta — sirf
     // planKey ("PAID_ALL" / "PAID_SINGLE" / "LAST_MINUTE") bhejta hai. Server
@@ -3174,7 +3218,7 @@ async function initiatePayment({ planKey, subjectName, description }) {
     try {
         const orderRes = await fetch(`${SUPABASE_FN_URL}?action=createOrder`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
             body: JSON.stringify({
                 plan_key: planKey,
                 subject_name: subjectName || null
@@ -3204,78 +3248,66 @@ async function initiatePayment({ planKey, subjectName, description }) {
             alert("🎉 आपके referral wallet से ₹" + (orderData.discount_applied / 100).toFixed(2) + " का discount apply हो गया!");
         }
 
-        // Payment verify karke access unlock karwane ka common logic (native aur web
-        // dono flows isi ko use karte hain, taaki duplicate na ho)
-        async function verifyAndFinish(paymentResponse) {
-            const verifyRes = await fetch(`${SUPABASE_FN_URL}?action=verifyPayment`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-                body: JSON.stringify(paymentResponse)
-            });
-            const verifyData = await verifyRes.json();
-
-            // Access ab server (verifyPayment + webhook backup) khud unlock karta hai —
-            // client yahan koi profile upsert nahi karta (security fix)
-            if (verifyData.success) {
-                alert("🎉 Payment Successful!");
-                window.location.reload();
-            } else {
-                alert("Payment verification failed!");
-            }
-        }
-
-        const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-        const nativeCheckout = isNativeApp && window.Capacitor.Plugins && window.Capacitor.Plugins.Checkout;
-
-        if (nativeCheckout) {
-            // App ke andar — Razorpay ka NATIVE Capacitor plugin use karo (web checkout.js
-            // ki jagah). Isse UPI apps (GPay/PhonePe/Paytm) properly detect + open hote hain,
-            // jo WebView ke andar chal rahe web checkout.js me kabhi nahi ho paata tha.
-            try {
-                const data = await window.Capacitor.Plugins.Checkout.open({
-                    key: "rzp_live_TSJ7e4DCS23qCo",
-                    amount: String(orderData.amount),
-                    currency: orderData.currency,
-                    name: "Srrijan Ikshan",
-                    description: description,
-                    order_id: orderData.id,
-                    prefill: { email: user.email, contact: "+91" + userPhone }
+        const options = {
+            key: "rzp_live_TSJ7e4DCS23qCo", // Aapki Key ID
+            amount: orderData.amount,
+            currency: orderData.currency,
+            name: "Srrijan Ikshan",
+            description: description,
+            order_id: orderData.id,
+            prefill: { email: user.email, contact: "+91" + userPhone },
+            handler: async function (response) {
+                const verifyRes = await fetch(`${SUPABASE_FN_URL}?action=verifyPayment`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+                    body: JSON.stringify(response)
                 });
-                var paymentResponse = data && data.response;
-                if (typeof paymentResponse === "string") {
-                    try { paymentResponse = JSON.parse(paymentResponse); } catch (e) { /* already object */ }
+                const verifyData = await verifyRes.json();
+
+                // Access ab server (verifyPayment + webhook backup) khud unlock karta hai —
+                // client yahan koi profile upsert nahi karta (security fix)
+                if (verifyData.success) {
+                    if (overrideToken) {
+                        // Yeh browser tab hai jo app ne khola tha — app ko wapas bata do
+                        window.location.href = "com.srrijanikshan.app://payment-success";
+                    } else {
+                        alert("🎉 Payment Successful!");
+                        window.location.reload();
+                    }
+                } else {
+                    alert("Payment verification failed!");
                 }
-                await verifyAndFinish(paymentResponse);
-            } catch (err) {
-                var msg = "Payment cancel ho gaya ya fail ho gaya.";
-                try {
-                    var errObj = JSON.parse(err && (err.code || err.message) || "{}");
-                    if (errObj.description) msg = errObj.description;
-                } catch (e2) { /* ignore parse failure, use default msg */ }
-                alert(msg);
             }
-        } else {
-            // Website/browser — jo pehle se hai, wahi web checkout.js
-            const options = {
-                key: "rzp_live_TSJ7e4DCS23qCo", // Aapki Key ID
-                amount: orderData.amount,
-                currency: orderData.currency,
-                name: "Srrijan Ikshan",
-                description: description,
-                order_id: orderData.id,
-                prefill: { email: user.email, contact: "+91" + userPhone },
-                handler: async function (response) {
-                    await verifyAndFinish(response);
-                }
-            };
-            new Razorpay(options).open();
-        }
+        };
+        new Razorpay(options).open();
     } catch (err) {
         alert("Payment error: " + err.message);
     } finally {
         __paymentInProgress = false;
     }
 }
+
+// Agar page browser me app se payment-link ke through khula hai (?buyPlan=...&buyToken=...),
+// to turant wahi payment start kar do
+(function () {
+    var qp = new URLSearchParams(window.location.search);
+    var buyPlan = qp.get("buyPlan");
+    var buyToken = qp.get("buyToken");
+    if (buyPlan && buyToken) {
+        var buySubject = qp.get("buySubject");
+        var descMap = {
+            PAID_ALL: "All Subjects Premium Pack",
+            PAID_SINGLE: "Single Subject - " + (buySubject || ""),
+            LAST_MINUTE: "Last-Minute Pack (7 din — 1-Day Revision Mode)"
+        };
+        initiatePayment({
+            planKey: buyPlan,
+            subjectName: buySubject || null,
+            description: descMap[buyPlan] || "Payment",
+            overrideToken: buyToken
+        });
+    }
+})();
 
 // --- Modal & Payment Global Functions ---
 window.openSubjectModal = function() {
