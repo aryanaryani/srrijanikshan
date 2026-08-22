@@ -929,7 +929,7 @@ img{ max-width:100%; display:block; }
         <h1 class="hero-title">सिर्फ Exam के समय नहीं।<br>साल भर आपके साथ —<span class="ink-mark">पढ़ाई हो या Revision।</span></h1>
         <p class="hero-sub">रोज़ practice करें, AI Tutor से कोई भी सवाल पूछें, अपनी कमज़ोरियाँ पहचानें — और जब Exam पास आए, तो हमारा AI Prediction और 1-Day Revision Mode आपको आखिरी तैयारी में मदद करेगा।</p>
         <div class="hero-cta-row">
-          <button class="btn btn-solid btn-lg" data-modal-open="signup">तैयारी शुरू करें →</button>
+          <a href="#pricing" class="btn btn-solid btn-lg">तैयारी शुरू करें →</a>
           <a href="#prediction" class="btn btn-outline btn-lg"> <img src="logo.png" alt="Srrijan Ikshan" height="25px"> AI Prediction देखें</a>
         </div>
         <div class="hero-trust">
@@ -3119,7 +3119,7 @@ function askPhoneNumber() {
   });
 }
 
-async function initiatePayment({ planType, amount, subjectName, description, profileUpdate }) {
+async function initiatePayment({ planKey, subjectName, description }) {
     if (__paymentInProgress) { return; } // ek time par sirf ek hi request jaaye
     __paymentInProgress = true;
 
@@ -3129,24 +3129,20 @@ async function initiatePayment({ planType, amount, subjectName, description, pro
     const user = session.user;
     const SUPABASE_FN_URL = "https://tphrdecdljxaqogocuxw.supabase.co/functions/v1/razorpay"; // Aapka supabase URL
 
-    // ---- Referral se mila wallet credit + saved phone (agar hai) ek saath fetch karo ----
-    var creditUsed = 0;
+    // SECURITY: ab price aur "kya unlock hoga" client kabhi nahi bhejta — sirf
+    // planKey ("PAID_ALL" / "PAID_SINGLE" / "LAST_MINUTE") bhejta hai. Server
+    // apni fixed price-table se amount nikalta hai aur payment verify hone
+    // ke baad khud hi decide karta hai profile me kya unlock karna hai. Pehle
+    // client hi amount aur profile_update bhejta tha, jo DevTools/Console se
+    // badla ja sakta tha aur free me plan mil sakta tha.
+
+    // ---- Saved phone (agar hai) fetch karo — UPI live-mode ke liye zaroori ----
     var userPhone = "";
     try {
-        const { data: walletProfile } = await supabase.from("profiles").select("wallet_credit, phone").eq("id", user.id).maybeSingle();
-        var availableCredit = (walletProfile && walletProfile.wallet_credit) || 0;
+        const { data: walletProfile } = await supabase.from("profiles").select("phone").eq("id", user.id).maybeSingle();
         userPhone = (walletProfile && walletProfile.phone) || "";
-        if (availableCredit > 0) {
-            var creditInPaise = Math.round(availableCredit * 100);
-            var maxDiscountable = amount - 100; // Razorpay minimum ₹1 (100 paise) se neeche order nahi ja sakta
-            creditUsed = Math.min(creditInPaise, Math.max(0, maxDiscountable));
-            if (creditUsed > 0) {
-                amount = amount - creditUsed;
-                alert("🎉 आपके referral wallet से ₹" + (creditUsed / 100).toFixed(2) + " का discount apply हो गया!");
-            }
-        }
     } catch (e) {
-        console.error("Wallet credit check failed:", e);
+        console.error("Phone check failed:", e);
     }
 
     // UPI live payments ke liye phone number zaroori hai (RBI/NPCI requirement).
@@ -3166,28 +3162,13 @@ async function initiatePayment({ planType, amount, subjectName, description, pro
         }
     }
 
-    // Yeh payload webhook ke "notes" me bhi jayega (server-side, reliable unlock ke liye)
-    // aur client-side handler me bhi reuse hoga (fast/turant UI feedback ke liye).
-    // Dono jagah EXACT SAME object use hota hai, taaki kabhi mismatch na ho.
-    var upsertPayload = profileUpdate
-        ? Object.assign({}, profileUpdate)
-        : { subscription_status: planType, subject_access: subjectName };
-    if (creditUsed > 0) {
-        upsertPayload.wallet_credit = Math.max(0, availableCredit - (creditUsed / 100));
-    }
-
     try {
         const orderRes = await fetch(`${SUPABASE_FN_URL}?action=createOrder`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
             body: JSON.stringify({
-                amount: amount,
-                currency: "INR",
-                receipt: "rcpt_" + Date.now(),
-                notes: {
-                    user_id: user.id,
-                    profile_update: JSON.stringify(upsertPayload)
-                }
+                plan_key: planKey,
+                subject_name: subjectName || null
             })
         });
 
@@ -3210,6 +3191,10 @@ async function initiatePayment({ planType, amount, subjectName, description, pro
             return;
         }
 
+        if (orderData.discount_applied > 0) {
+            alert("🎉 आपके referral wallet से ₹" + (orderData.discount_applied / 100).toFixed(2) + " का discount apply हो गया!");
+        }
+
         const options = {
             key: "rzp_live_TSJ7e4DCS23qCo", // Aapki Key ID
             amount: orderData.amount,
@@ -3226,23 +3211,14 @@ async function initiatePayment({ planType, amount, subjectName, description, pro
                 });
                 const verifyData = await verifyRes.json();
 
+                // Access ab server (verifyPayment + webhook backup) khud unlock karta hai —
+                // client yahan koi profile upsert nahi karta (security fix)
                 if (verifyData.success) {
-                    const finalPayload = Object.assign({ id: user.id }, upsertPayload);
-
-                    const { data: upsertResult, error: profileErr } = await supabase
-                        .from("profiles")
-                        .upsert(finalPayload, { onConflict: "id" })
-                        .select();
-
-                    console.log("Profile upsert result:", upsertResult, "error:", profileErr);
-
-                    if (profileErr) {
-                        alert("Payment ho gaya! Access thodi der me automatically unlock ho jayega (background me confirm ho raha hai). Agar 5 minute me bhi na ho to Support se contact karein.");
-                    } else {
-                        alert("🎉 Payment Successful!");
-                        window.location.reload();
-                    }
-                } else { alert("Payment verification failed!"); }
+                    alert("🎉 Payment Successful!");
+                    window.location.reload();
+                } else {
+                    alert("Payment verification failed!");
+                }
             }
         };
         new Razorpay(options).open();
@@ -3268,20 +3244,15 @@ window.proceedToSubjectPayment = function() {
     var subjectEl = document.getElementById("selectedSubject");
     var subject = subjectEl ? subjectEl.value : "General";
     window.closeSubjectModal();
-    initiatePayment({ planType: "PAID_SINGLE", amount: 9900, subjectName: subject, description: "Single Subject - " + subject });
+    initiatePayment({ planKey: "PAID_SINGLE", subjectName: subject, description: "Single Subject - " + subject });
 };
 
 window.buyAllSubjectPack = function() {
-    initiatePayment({ planType: "PAID_ALL", amount: 59900, subjectName: null, description: "All Subjects Premium Pack" });
+    initiatePayment({ planKey: "PAID_ALL", description: "All Subjects Premium Pack" });
 };
 
 window.buyLastMinutePack = function() {
-    var sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    initiatePayment({
-        amount: 100,
-        description: "Last-Minute Pack (7 din — 1-Day Revision Mode)",
-        profileUpdate: { last_minute_expires_at: sevenDaysLater }
-    });
+    initiatePayment({ planKey: "LAST_MINUTE", description: "Last-Minute Pack (7 din — 1-Day Revision Mode)" });
 };
 
 })();
