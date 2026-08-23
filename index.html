@@ -912,7 +912,7 @@ img{ max-width:100%; display:block; }
 </head>
 <body>
 
-  <!-- ============ LOCAL VIDEO SPLASH SCREEN ============ -->
+  <!-- ============ LOCAL VIDEO SPLASH SCREEN (Grey Edge Removed) ============ -->
 <div id="appSplashScreen" style="position:fixed;inset:0;background:#ffffff;z-index:9999999;display:flex;align-items:center;justify-content:center;transition:opacity 0.4s ease;">
   <video id="splashVideo"
          autoplay
@@ -920,7 +920,7 @@ img{ max-width:100%; display:block; }
          playsinline
          webkit-playsinline
          preload="auto"
-         style="width:90%;max-width:420px;height:auto;object-fit:contain;pointer-events:none;background:transparent;">
+         style="width:90%;max-width:420px;height:auto;object-fit:contain;pointer-events:none;background:transparent;mix-blend-mode:multiply;filter:contrast(1.05) brightness(1.02);">
     <source src="splash.mp4" type="video/mp4">
   </video>
 </div>
@@ -949,7 +949,6 @@ img{ max-width:100%; display:block; }
       video.addEventListener("error", removeSplash);
     }
 
-    // Safety fallback: 5 second se zyada splash hold na ho
     setTimeout(removeSplash, 5000);
   })();
 </script>
