@@ -1,0 +1,13 @@
+{
+  "appId": "com.srrijanikshan.app",
+  "appName": "Srrijan Ikshan",
+  "webDir": "www",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#FFFFFF",
+      "showSpinner": false
+    }
+  }
+}
