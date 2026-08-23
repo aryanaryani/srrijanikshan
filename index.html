@@ -926,7 +926,6 @@ img{ max-width:100%; display:block; }
       <div class="user-chip" id="userChip" hidden>
         <span class="user-chip-avatar" id="userAvatar">👤</span>
         <span class="user-chip-name" id="userName"></span>
-        <button class="btn btn-ghost btn-sm" id="logoutBtn">लॉगआउट</button>
       </div>
       <button class="nav-toggle" id="navToggle" aria-label="मेनू खोलें" aria-expanded="false">
         <span></span><span></span><span></span>
@@ -1537,6 +1536,12 @@ img{ max-width:100%; display:block; }
     <div id="dashboardContent" style="margin-top:16px; max-height:65vh; overflow-y:auto; padding-right:4px;">
       <p class="output-placeholder">लोड हो रहा है...</p>
     </div>
+
+    <div style="margin-top:20px; padding:16px; border:1px solid var(--danger); border-radius:12px; background:#FBE2E2;">
+      <p style="margin:0 0 4px; font-weight:700; color:var(--danger);">⚠️ Danger Zone</p>
+      <p style="margin:0 0 12px; font-size:.85rem; color:#7a2b2b;">यहाँ से आप अपने अकाउंट से लॉगआउट कर सकते हैं।</p>
+      <button class="btn btn-ghost btn-sm" id="logoutBtn" style="border:1px solid var(--danger); color:var(--danger);">लॉगआउट</button>
+    </div>
   </div>
 
   <div class="modal-box" id="aiTutorModal" hidden>
@@ -1860,8 +1865,8 @@ img{ max-width:100%; display:block; }
       panel.innerHTML =
         '<p class="ref-count-text" style="margin:0;font-size:13px;color:#3a2c10;">अभी तक ' + count + ' दोस्तों ने join किया</p>' +
         '<div style="display:flex;gap:8px;">' +
-        '<button class="btn btn-solid" id="refCopyBtn" style="background:var(--ink);flex:1;min-width:0;padding:12px 8px;font-size:.82rem;white-space:normal;">🔗 Link Copy करें</button>' +
-        '<a class="btn btn-solid" href="https://wa.me/?text=' + waText + '" target="_blank" style="background:#25D366;color:#ffffff;flex:1;min-width:0;padding:8px 8px;font-size:.82rem;white-space:normal;">📱 WhatsApp पर भेजें</a>' +
+        '<button class="btn btn-solid" id="refCopyBtn" style="background:var(--ink);flex:1;min-width:0;padding:8px 17px;font-size:.90rem;white-space:normal;">🔗 Link Copy करें</button>' +
+        '<a class="btn btn-solid" href="https://wa.me/?text=' + waText + '" target="_blank" style="background:#25D366;color:#ffffff;flex:1;min-width:0;padding:8px 17px;font-size:.90rem;white-space:normal;"> 📱 WhatsApp पर भेजें </a>' +
         '</div>';
       stripInner.appendChild(panel);
 
