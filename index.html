@@ -912,54 +912,73 @@ img{ max-width:100%; display:block; }
 </head>
 <body>
 
-  <!-- ============ SPLASH SCREEN ============ -->
-<div id="videoSplashScreen" style="position: fixed; inset: 0; background: #ffffff; z-index: 999999; display: flex; align-items: center; justify-content: center; transition: opacity 0.4s ease;">
+  <!-- ============ INSTANT SMOOTH SPLASH SCREEN ============ -->
+<div id="appSplashScreen" style="position:fixed;inset:0;background:#ffffff;z-index:9999999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.5s ease;">
   
-  <video id="splashVideo" 
-         autoplay 
-         muted 
-         playsinline 
-         webkit-playsinline
-         preload="auto"
-         style="width: 85%; max-width: 400px; height: auto; object-fit: contain; outline: none;">
-    <!-- Local file fallback + Live Vercel fallback -->
-    <source src="splash.mp4" type="video/mp4">
-    <source src="https://srrijanikshan.vercel.app/splash.mp4" type="video/mp4">
-  </video>
+  <div class="splash-anim-wrapper">
+    <!-- Aapka Hexagon Logo (SVG/Image) -->
+    <div class="splash-hexagon">
+      <img src="logo.png" alt="Logo" class="splash-logo-img">
+    </div>
+  </div>
 
+  <style>
+    .splash-anim-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 140px;
+      height: 140px;
+    }
+
+    /* Dusre animation jaisa Scale & Pop effect */
+    .splash-hexagon {
+      animation: hexPopIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      transform: scale(0);
+      opacity: 0;
+    }
+
+    .splash-logo-img {
+      width: 120px;
+      height: auto;
+      display: block;
+    }
+
+    @keyframes hexPopIn {
+      0% {
+        transform: scale(0.2);
+        opacity: 0;
+      }
+      60% {
+        transform: scale(1.1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+  </style>
 </div>
 
 <script>
   (function() {
-    var video = document.getElementById("splashVideo");
-    var splashContainer = document.getElementById("videoSplashScreen");
-
-    function removeSplash() {
-      if (splashContainer && document.body.contains(splashContainer)) {
-        splashContainer.style.opacity = "0";
+    function hideSplash() {
+      var splash = document.getElementById("appSplashScreen");
+      if (splash) {
+        splash.style.opacity = "0";
         setTimeout(function() {
-          splashContainer.remove();
-        }, 400);
+          splash.remove();
+        }, 500);
       }
     }
 
-    if (video) {
-      // Force play call for Android WebView compatibility
-      video.muted = true;
-      var playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(function() {
-          // Agar autoplay block ho jaye toh screen hold na ho
-          removeSplash();
-        });
-      }
+    // Jaise hi page puri tarah load ho jaye (ya maximum 1.5s baad) splash hata do
+    window.addEventListener("load", function() {
+      setTimeout(hideSplash, 1200);
+    });
 
-      video.addEventListener("ended", removeSplash);
-      video.addEventListener("error", removeSplash);
-    }
-
-    // Fallback maximum limit
-    setTimeout(removeSplash, 4000);
+    setTimeout(hideSplash, 2500);
   })();
 </script>
 
