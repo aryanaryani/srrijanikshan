@@ -65,6 +65,18 @@
 html{ scroll-behavior:smooth; }
 html,body{ margin:0; padding:0; }
 
+/* Global overflow safety: CSS grid/flex children default to min-width:auto,
+   which lets long text (button labels, headings) force a column wider than
+   its track and push content off-screen on small devices. Zeroing min-width
+   on every grid/flex track's direct children lets them shrink with the
+   screen instead of overflowing it. */
+.hero-grid > *, .prediction-grid > *, .mock-grid > *, .app-grid > *,
+.footer-grid > *, .pricing-grid > *, .process-list > *, .subject-grid > *,
+.tier-grid > *, .revision-tool > *, .header-inner > *, .main-nav > *,
+.hero-cta-row > *, .modal-actions > *{
+  min-width:0;
+}
+
 @media (prefers-reduced-motion: reduce){
   html{ scroll-behavior:auto; }
   *,*::before,*::after{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
@@ -78,6 +90,7 @@ body{
   line-height:2;
   -webkit-font-smoothing:antialiased;
   overflow-x:hidden;
+  overflow-wrap:break-word;
 }
 
 h1,h2,h3,h4{
@@ -95,7 +108,7 @@ button{ font-family:inherit; cursor:pointer; }
 input,select{ font-family:inherit; }
 img{ max-width:100%; display:block; }
 
-.wrap{ max-width:1180px; margin:0 auto; padding:0 clamp(16px,4.5vw,24px); }
+.wrap{ max-width:1180px; margin:0 auto; padding:0 24px; }
 .wrap-narrow{ max-width:760px; }
 
 /* subtle paper grain texture over whole page */
@@ -110,10 +123,10 @@ img{ max-width:100%; display:block; }
    ========================================================================== */
 .btn{
   display:inline-flex; align-items:center; justify-content:center; gap:8px;
-  padding:clamp(10px,3vw,13px) clamp(16px,4.5vw,24px); border-radius:999px; border:2px solid transparent;
-  font-weight:700; font-size:clamp(.82rem,2.6vw,.95rem); font-family:var(--font-body);
+  padding:13px 24px; border-radius:999px; border:2px solid transparent;
+  font-weight:700; font-size:.95rem; font-family:var(--font-body);
   transition:transform .25s var(--ease), box-shadow .25s var(--ease), background .2s, border-color .2s, color .2s;
-  white-space:nowrap; max-width:100%;
+  white-space:nowrap;
 }
 .btn:active{ transform:scale(.97); }
 .btn-solid{
@@ -151,7 +164,7 @@ img{ max-width:100%; display:block; }
   display:flex; align-items:center; justify-content:center; font-size:.85rem; overflow:hidden; flex-shrink:0;
 }
 .user-chip-avatar img{ width:100%; height:100%; object-fit:cover; }
-.user-chip-name{ display:none; font-weight:600; font-size:.85rem; color:var(--ink); max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.user-chip-name{ display:none; }
 .btn-sm{ padding:7px 13px; font-size:.78rem; }
 .brand-name em{ font-style:normal; color:var(--accent); }
 
@@ -295,8 +308,8 @@ img{ max-width:100%; display:block; }
 .section-alt{ background:var(--paper-2); }
 .section-title{ font-size:clamp(1.6rem, 3vw, 2.3rem); max-width:640px; }
 .section-title.center{ margin-left:auto; margin-right:auto; text-align:center; }
-.section-sub{ max-width:560px; margin:0 auto 52px; text-align:center; font-size:clamp(.9rem,2.6vw,1.02rem); }
-.section-sub-left{ max-width:480px; font-size:clamp(.9rem,2.6vw,1.02rem); }
+.section-sub{ max-width:560px; margin:0 auto 52px; text-align:center; font-size:1.02rem; }
+.section-sub-left{ max-width:480px; font-size:1.02rem; }
 .center{ text-align:center; }
 
 /* ==========================================================================
@@ -389,33 +402,34 @@ img{ max-width:100%; display:block; }
 .revision-head{ margin-bottom:44px; }
 
 .revision-tool{
-  display:grid; grid-template-columns:.85fr 1.15fr; gap:clamp(16px,4vw,30px);
+  display:grid; grid-template-columns:.85fr 1.15fr; gap:30px;
   background:rgba(245,239,224,0.04);
   border:1px solid rgba(245,239,224,0.14);
-  border-radius:var(--radius-lg); padding:clamp(18px,4.5vw,34px);
+  border-radius:var(--radius-lg); padding:34px;
 }
-.revision-controls{ display:flex; flex-direction:column; gap:8px; min-width:0; }
+.revision-controls{ display:flex; flex-direction:column; gap:8px; }
 .revision-controls label{
-  font-size:clamp(.76rem,2.6vw,.82rem); font-weight:700; color:var(--orange-2);
+  font-size:.82rem; font-weight:700; color:var(--orange-2);
   margin-top:14px; font-family:var(--font-mono); letter-spacing:.02em;
-  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
 }
 .revision-controls label:first-child{ margin-top:0; }
 .revision-controls input[type="range"]{
   width:100%; accent-color:var(--orange);
 }
-.hours-readout{ font-family:var(--font-mono); font-size:clamp(1.1rem,4vw,1.4rem); font-weight:700; color:var(--paper); }
+.hours-readout{ font-family:var(--font-mono); font-size:1.4rem; font-weight:700; color:var(--paper); }
 .hours-readout span{ color:var(--orange-2); }
 .revision-controls select{
   background-color: var(--surface); border:1px solid rgba(245,239,224,0.25);
   color:var(--ink-soft); padding:11px 14px; border-radius:10px; font-size:.95rem;
-  max-width:100%;
 }
-.revision-controls .btn{ margin-top:22px; white-space:normal; text-align:center; line-height:1.3; }
+.revision-controls .btn{
+  margin-top:22px; width:100%; white-space:normal; text-align:center;
+  line-height:1.3; font-size:clamp(.82rem,3vw,.95rem); padding:14px 16px;
+}
 
 .revision-output{
   background:var(--surface); color:var(--ink); border-radius:var(--radius-md);
-  padding:clamp(16px,4vw,24px); max-height:420px; overflow-y:auto; min-width:0;
+  padding:24px; max-height:420px; overflow-y:auto;
 }
 .output-placeholder{ color:var(--ink-faint); text-align:center; margin:60px 0; }
 .plan-row{
@@ -653,7 +667,10 @@ img{ max-width:100%; display:block; }
   .footer-grid{ grid-template-columns:1fr 1fr; }
 }
 
-@media (max-width: 720px){
+/* Header/nav collapses to the hamburger menu earlier (1060px) than the rest
+   of the mobile layout (720px) — the nav links + auth buttons need that much
+   room and were overflowing the header on tablet-width screens otherwise. */
+@media (max-width: 1060px){
   .header-inner{ position:relative; flex-wrap:wrap; }
   .header-inner .eyebrow{ display:none; }
   .brand-logo{ height:44px; }
@@ -674,7 +691,9 @@ img{ max-width:100%; display:block; }
   }
   .nav-toggle{ display:flex; }
   #navLoginBtn{ display:none; }
-  .user-chip-name{ display:none; }
+}
+
+@media (max-width: 720px){
   .hero{ padding:40px 0 20px; }
   .hero-cta-row{ flex-direction:column; }
   .hero-cta-row .btn{ width:100%; }
@@ -701,6 +720,7 @@ img{ max-width:100%; display:block; }
   .btn-lg{ padding:14px 22px; font-size:.95rem; }
   .section{ padding:48px 0; }
   .price-card, .subject-card, .process-step, .tier-card{ padding:20px 16px; }
+  .revision-tool{ padding:20px 16px; gap:22px; }
 }
 
   [hidden] { display: none !important; }
@@ -1239,7 +1259,7 @@ img{ max-width:100%; display:block; }
 
       <div class="revision-tool reveal-up" style="--delay:.1s" id="revisionTool">
         <div class="revision-controls" id="revisionControls">
-          <label for="hoursRange">⏳️ कितने घंटे उपलब्ध हैं?</label>
+          <label for="hoursRange">⏳ कितने घंटे उपलब्ध हैं?</label>
           <input type="range" id="hoursRange" min="3" max="10" value="8" step="1">
           <div class="hours-readout"><span id="hoursValue">8</span> घंटे बचे हैं</div>
 
@@ -1867,8 +1887,8 @@ img{ max-width:100%; display:block; }
       panel.innerHTML =
         '<p class="ref-count-text" style="margin:0;font-size:13px;color:#3a2c10;">अभी तक ' + count + ' दोस्तों ने join किया</p>' +
         '<div style="display:flex;gap:8px;">' +
-        '<button class="btn btn-solid" id="refCopyBtn" style="background:var(--ink);flex:1;min-width:0;padding:8px 10px;font-size:clamp(.72rem,3vw,.90rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🔗 Link Copy करें</button>' +
-        '<a class="btn btn-solid" href="https://wa.me/?text=' + waText + '" target="_blank" style="background:#25D366;color:#ffffff;flex:1;min-width:0;padding:8px 10px;font-size:clamp(.72rem,3vw,.90rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📱 WhatsApp</a>' +
+        '<button class="btn btn-solid" id="refCopyBtn" style="background:var(--ink);flex:1;min-width:0;padding:8px clamp(8px,3vw,17px);font-size:clamp(.72rem,3vw,.90rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;gap:5px;">🔗 Link Copy करें</button>' +
+        '<a class="btn btn-solid" href="https://wa.me/?text=' + waText + '" target="_blank" style="background:#25D366;color:#ffffff;flex:1;min-width:0;padding:8px clamp(8px,3vw,17px);font-size:clamp(.72rem,3vw,.90rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;gap:5px;">📱 WhatsApp पर भेजें</a>' +
         '</div>';
       stripInner.appendChild(panel);
 
@@ -2241,7 +2261,7 @@ img{ max-width:100%; display:block; }
   generateBtn.addEventListener("click", async function () {
     var hours = parseInt(hoursRange.value, 10);
 
-    output.innerHTML = '<p class="output-placeholder">⏳️ आपका plan तैयार हो रहा है...</p>';
+    output.innerHTML = '<p class="output-placeholder">⏳ आपका plan तैयार हो रहा है...</p>';
 
     try {
       var data = await fetchRevisionPlan(hours);
@@ -2422,7 +2442,7 @@ img{ max-width:100%; display:block; }
     var subjectSlug = document.getElementById("mockSubjectSelect").value;
     var count = parseInt(document.getElementById("mockCountSelect").value, 10);
 
-    mockContainer.innerHTML = '<div class="mock-result-card"><p class="output-placeholder">⏳️ Test तैयार हो रहा है...</p></div>';
+    mockContainer.innerHTML = '<div class="mock-result-card"><p class="output-placeholder">⏳ Test तैयार हो रहा है...</p></div>';
 
     var data = await callFn("generate-mock-test", { subject_slug: subjectSlug, count: count });
     if (data.error) {
@@ -2444,7 +2464,7 @@ img{ max-width:100%; display:block; }
       answers[q.id] = selected ? selected.value : null;
     });
 
-    mockContainer.innerHTML = '<div class="mock-result-card"><p class="output-placeholder">⏳️ Result तैयार हो रहा है...</p></div>';
+    mockContainer.innerHTML = '<div class="mock-result-card"><p class="output-placeholder">⏳ Result तैयार हो रहा है...</p></div>';
 
     var session = await supabase.auth.getSession();
     var userId = (session.data.session && session.data.session.user) ? session.data.session.user.id : null;
@@ -2548,7 +2568,7 @@ img{ max-width:100%; display:block; }
     if (!currentUserForDashboard) return;
     var container = document.getElementById("dashboardContent");
     var existingPlan = container.querySelector(".mock-result-card:last-child");
-    if (existingPlan) existingPlan.innerHTML = '<p class="output-placeholder">⏳️ नया plan बन रहा है...</p>';
+    if (existingPlan) existingPlan.innerHTML = '<p class="output-placeholder">⏳ नया plan बन रहा है...</p>';
     await callFn("get-study-plan", { user_id: currentUserForDashboard.id, force_refresh: true });
     loadDashboard(currentUserForDashboard);
   };
@@ -2770,7 +2790,7 @@ img{ max-width:100%; display:block; }
     var content = document.getElementById("attemptReviewContent");
     var title = document.getElementById("reviewModalTitle");
     title.textContent = "Loading...";
-    content.innerHTML = '<p class="output-placeholder">⏳️ लोड हो रहा है...</p>';
+    content.innerHTML = '<p class="output-placeholder">⏳ लोड हो रहा है...</p>';
 
     openModal("attemptReview");
 
@@ -2822,7 +2842,7 @@ img{ max-width:100%; display:block; }
 
     openModal("dailyPractice");
     var content = document.getElementById("dailyPracticeContent");
-    content.innerHTML = '<p class="output-placeholder">⏳️ लोड हो रहा है...</p>';
+    content.innerHTML = '<p class="output-placeholder">⏳ लोड हो रहा है...</p>';
 
     var data = await callFn("get-daily-practice", { user_id: userId });
     if (data.error) {
@@ -2876,7 +2896,7 @@ img{ max-width:100%; display:block; }
     });
 
     var content = document.getElementById("dailyPracticeContent");
-    content.innerHTML = '<p class="output-placeholder">⏳️ जमा हो रहा है...</p>';
+    content.innerHTML = '<p class="output-placeholder">⏳ जमा हो रहा है...</p>';
 
     var result = await callFn("submit-daily-practice", {
       user_id: userId,
@@ -2913,7 +2933,7 @@ img{ max-width:100%; display:block; }
     openModal("weakTopic");
     document.getElementById("weakTopicTitle").textContent = chapterName;
     var content = document.getElementById("weakTopicContent");
-    content.innerHTML = '<p class="output-placeholder">⏳️ प्रश्न तैयार हो रहे हैं...</p>';
+    content.innerHTML = '<p class="output-placeholder">⏳ प्रश्न तैयार हो रहे हैं...</p>';
 
     var data = await callFn("get-weak-topic-practice", { chapter_id: chapterId });
     if (data.error) {
@@ -2955,7 +2975,7 @@ img{ max-width:100%; display:block; }
     });
 
     var content = document.getElementById("weakTopicContent");
-    content.innerHTML = '<p class="output-placeholder">⏳️ जमा हो रहा है...</p>';
+    content.innerHTML = '<p class="output-placeholder">⏳ जमा हो रहा है...</p>';
 
     var result = await callFn("submit-weak-topic-practice", {
       user_id: userId,
@@ -3003,7 +3023,7 @@ img{ max-width:100%; display:block; }
     document.getElementById("dqTabLeaderboard").className = "btn btn-ghost btn-sm";
 
     var content = document.getElementById("dailyQuizContent");
-    content.innerHTML = '<p class="output-placeholder">⏳️ लोड हो रहा है...</p>';
+    content.innerHTML = '<p class="output-placeholder">⏳ लोड हो रहा है...</p>';
 
     var session = await supabase.auth.getSession();
     var userId = (session.data.session && session.data.session.user) ? session.data.session.user.id : null;
@@ -3053,7 +3073,7 @@ img{ max-width:100%; display:block; }
     });
 
     var content = document.getElementById("dailyQuizContent");
-    content.innerHTML = '<p class="output-placeholder">⏳️ जमा हो रहा है...</p>';
+    content.innerHTML = '<p class="output-placeholder">⏳ जमा हो रहा है...</p>';
 
     var result = await callFn("submit-daily-quiz", { user_id: userId, answers: answers });
     if (result.error) {
@@ -3074,7 +3094,7 @@ img{ max-width:100%; display:block; }
     document.getElementById("dqTabLeaderboard").className = "btn btn-solid btn-sm";
 
     var content = document.getElementById("dailyQuizContent");
-    content.innerHTML = '<p class="output-placeholder">⏳️ लोड हो रहा है...</p>';
+    content.innerHTML = '<p class="output-placeholder">⏳ लोड हो रहा है...</p>';
 
     var data = await callFn("get-leaderboard", { period: "today" });
     if (!data.leaderboard || data.leaderboard.length === 0) {
