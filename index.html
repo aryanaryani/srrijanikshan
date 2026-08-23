@@ -912,73 +912,45 @@ img{ max-width:100%; display:block; }
 </head>
 <body>
 
-  <!-- ============ INSTANT SMOOTH SPLASH SCREEN ============ -->
-<div id="appSplashScreen" style="position:fixed;inset:0;background:#ffffff;z-index:9999999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.5s ease;">
-  
-  <div class="splash-anim-wrapper">
-    <!-- Aapka Hexagon Logo (SVG/Image) -->
-    <div class="splash-hexagon">
-      <img src="logo.png" alt="Logo" class="splash-logo-img">
-    </div>
-  </div>
-
-  <style>
-    .splash-anim-wrapper {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 140px;
-      height: 140px;
-    }
-
-    /* Dusre animation jaisa Scale & Pop effect */
-    .splash-hexagon {
-      animation: hexPopIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-      transform: scale(0);
-      opacity: 0;
-    }
-
-    .splash-logo-img {
-      width: 120px;
-      height: auto;
-      display: block;
-    }
-
-    @keyframes hexPopIn {
-      0% {
-        transform: scale(0.2);
-        opacity: 0;
-      }
-      60% {
-        transform: scale(1.1);
-        opacity: 1;
-      }
-      100% {
-        transform: scale(1);
-        opacity: 1;
-      }
-    }
-  </style>
+  <!-- ============ LOCAL VIDEO SPLASH SCREEN ============ -->
+<div id="appSplashScreen" style="position:fixed;inset:0;background:#ffffff;z-index:9999999;display:flex;align-items:center;justify-content:center;transition:opacity 0.4s ease;">
+  <video id="splashVideo"
+         autoplay
+         muted
+         playsinline
+         webkit-playsinline
+         preload="auto"
+         style="width:90%;max-width:420px;height:auto;object-fit:contain;pointer-events:none;background:transparent;">
+    <source src="splash.mp4" type="video/mp4">
+  </video>
 </div>
 
 <script>
-  (function() {
-    function hideSplash() {
-      var splash = document.getElementById("appSplashScreen");
-      if (splash) {
+  (function () {
+    var video = document.getElementById("splashVideo");
+    var splash = document.getElementById("appSplashScreen");
+
+    function removeSplash() {
+      if (splash && splash.parentNode) {
         splash.style.opacity = "0";
-        setTimeout(function() {
-          splash.remove();
-        }, 500);
+        setTimeout(function () {
+          if (splash && splash.parentNode) splash.remove();
+        }, 400);
       }
     }
 
-    // Jaise hi page puri tarah load ho jaye (ya maximum 1.5s baad) splash hata do
-    window.addEventListener("load", function() {
-      setTimeout(hideSplash, 1200);
-    });
+    if (video) {
+      video.muted = true;
+      video.play().catch(function () {
+        removeSplash();
+      });
 
-    setTimeout(hideSplash, 2500);
+      video.addEventListener("ended", removeSplash);
+      video.addEventListener("error", removeSplash);
+    }
+
+    // Safety fallback: 5 second se zyada splash hold na ho
+    setTimeout(removeSplash, 5000);
   })();
 </script>
 
