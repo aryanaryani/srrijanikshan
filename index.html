@@ -912,37 +912,55 @@ img{ max-width:100%; display:block; }
 </head>
 <body>
 
-  <!-- ============ VIDEO SPLASH SCREEN (Dark Mode & 16:9 Safe) ============ -->
-<div id="videoSplashScreen" style="position: fixed; inset: 0; background: var(--paper, #ffffff); z-index: 999999; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s ease;">
+  <!-- ============ SPLASH SCREEN ============ -->
+<div id="videoSplashScreen" style="position: fixed; inset: 0; background: #ffffff; z-index: 999999; display: flex; align-items: center; justify-content: center; transition: opacity 0.4s ease;">
   
-  <!-- 'mix-blend-mode: multiply' se video ka white background transparent ban jata hai -->
-  <video id="splashVideo" autoplay muted playsinline style="width: 100%; max-width: 420px; height: auto; object-fit: contain; mix-blend-mode: multiply; outline: none;">
+  <video id="splashVideo" 
+         autoplay 
+         muted 
+         playsinline 
+         webkit-playsinline
+         preload="auto"
+         style="width: 85%; max-width: 400px; height: auto; object-fit: contain; outline: none;">
+    <!-- Local file fallback + Live Vercel fallback -->
     <source src="splash.mp4" type="video/mp4">
+    <source src="https://srrijanikshan.vercel.app/splash.mp4" type="video/mp4">
   </video>
 
 </div>
 
 <script>
-  document.addEventListener("DOMContentLoaded", function() {
+  (function() {
     var video = document.getElementById("splashVideo");
     var splashContainer = document.getElementById("videoSplashScreen");
 
-    if (video && splashContainer) {
-      video.onended = function() {
-        splashContainer.style.opacity = "0"; 
+    function removeSplash() {
+      if (splashContainer && document.body.contains(splashContainer)) {
+        splashContainer.style.opacity = "0";
         setTimeout(function() {
-          splashContainer.remove(); 
-        }, 500);
-      };
-
-      setTimeout(function() {
-        if (document.body.contains(splashContainer)) {
-          splashContainer.style.opacity = "0";
-          setTimeout(() => splashContainer.remove(), 500);
-        }
-      }, 5000); 
+          splashContainer.remove();
+        }, 400);
+      }
     }
-  });
+
+    if (video) {
+      // Force play call for Android WebView compatibility
+      video.muted = true;
+      var playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(function() {
+          // Agar autoplay block ho jaye toh screen hold na ho
+          removeSplash();
+        });
+      }
+
+      video.addEventListener("ended", removeSplash);
+      video.addEventListener("error", removeSplash);
+    }
+
+    // Fallback maximum limit
+    setTimeout(removeSplash, 4000);
+  })();
 </script>
 
 <!-- ============ NOISE / GRAIN OVERLAY ============ -->
