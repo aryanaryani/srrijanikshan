@@ -485,6 +485,7 @@ img{ max-width:100%; display:block; }
 .referral-inner h3{ margin-bottom:4px; font-size:1.2rem; color:var(--ink); }
 .referral-inner p{ margin:0; color:#3a2c10; font-size:.9rem; }
 .referral-inner .btn-solid{ background:var(--ink); color:var(--paper); box-shadow:none; }
+.referral-share-panel{ align-items:flex-end; }
 
 /* ==========================================================================
    FAQ
@@ -679,6 +680,9 @@ img{ max-width:100%; display:block; }
   .process-list, .subject-grid, .pricing-grid, .footer-grid, .app-grid{ grid-template-columns:1fr; }
   .section{ padding:64px 0; }
   .referral-inner{ flex-direction:column; text-align:center; }
+  .ref-count-text{ text-align:center; }
+  .ref-count-text{ text-align:center; }
+  .referral-share-panel{ align-items:center; }
   .p-row{ grid-template-columns:18px 1fr 60px 30px; }
 }
 
@@ -1851,12 +1855,13 @@ img{ max-width:100%; display:block; }
 
       var panel = document.createElement("div");
       panel.id = "referralSharePanel";
-      panel.style.cssText = "display:flex;flex-direction:column;gap:8px;align-items:flex-end;";
+      panel.className = "referral-share-panel";
+      panel.style.cssText = "display:flex;flex-direction:column;gap:8px;";
       panel.innerHTML =
-        '<p style="margin:0;font-size:13px;color:#3a2c10;">अभी तक ' + count + ' दोस्तों ने join किया</p>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-        '<button class="btn btn-solid" id="refCopyBtn" style="background:var(--ink);">🔗 Link Copy करें</button>' +
-        '<a class="btn btn-solid" href="https://wa.me/?text=' + waText + '" target="_blank" style="background:#25D366;color:#fff;">📱 WhatsApp पर भेजें</a>' +
+        '<p class="ref-count-text" style="margin:0;font-size:13px;color:#3a2c10;">अभी तक ' + count + ' दोस्तों ने join किया</p>' +
+        '<div style="display:flex;gap:8px;">' +
+        '<button class="btn btn-solid" id="refCopyBtn" style="background:var(--ink);flex:1;min-width:0;padding:12px 8px;font-size:.82rem;white-space:normal;">🔗 Link Copy करें</button>' +
+        '<a class="btn btn-solid" href="https://wa.me/?text=' + waText + '" target="_blank" style="background:#25D366;color:#fff;flex:1;min-width:0;padding:12px 8px;font-size:.82rem;white-space:normal;">📱 WhatsApp पर भेजें</a>' +
         '</div>';
       stripInner.appendChild(panel);
 
