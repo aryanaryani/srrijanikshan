@@ -912,7 +912,7 @@ img{ max-width:100%; display:block; }
 </head>
 <body>
 
-  <!-- ============ WEBSITE + APP UNIVERSAL SPLASH & AUTO SOUND ============ -->
+  <!-- ============ FAILPROOF AUDIO & SPLASH CONTROLLER ============ -->
 <div id="appSplashScreen" style="position:fixed;inset:0;background:#44855D;z-index:9999999;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:opacity 0.5s ease;">
   <div style="position:relative;width:100%;max-width:450px;display:flex;align-items:center;justify-content:center;">
     <video id="splashVideo"
@@ -931,60 +931,53 @@ img{ max-width:100%; display:block; }
   (function () {
     var video = document.getElementById("splashVideo");
     var splash = document.getElementById("appSplashScreen");
-    var soundPlayed = false;
+    
+    var appAudio = new Audio("welcome.mp3");
+    appAudio.preload = "auto";
+    appAudio.volume = 0.7;
 
-    // Web Audio Context setup (Bypasses standard HTML5 audio block)
-    var AudioContext = window.AudioContext || window.webkitAudioContext;
-    var audioCtx = AudioContext ? new AudioContext() : null;
-    var audioBuffer = null;
+    var animationEnded = false;
+    var audioHasPlayed = false;
 
-    // Pre-fetch and decode audio data instantly
-    if (audioCtx) {
-      fetch("welcome.mp3")
-        .then(function (res) { return res.arrayBuffer(); })
-        .then(function (data) { return audioCtx.decodeAudioData(data); })
-        .then(function (decoded) { audioBuffer = decoded; })
-        .catch(function () {});
-    }
-
-    function playAppSound() {
-      if (soundPlayed) return;
-      soundPlayed = true;
-
-      // 1. Try Web Audio Context buffer play
-      if (audioCtx && audioBuffer) {
-        if (audioCtx.state === "suspended") {
-          audioCtx.resume();
-        }
-        var source = audioCtx.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(audioCtx.destination);
-        source.start(0);
-        return;
-      }
-
-      // 2. Fallback to standard Audio tag
-      var audio = new Audio("welcome.mp3");
-      audio.volume = 0.7;
-      var playPromise = audio.play();
+    function triggerAudio() {
+      if (audioHasPlayed) return;
+      
+      var playPromise = appAudio.play();
       if (playPromise !== undefined) {
-        playPromise.catch(function () {
-          // Passive unlock on any early interaction
-          function unlock() {
-            audio.play();
-            document.removeEventListener("click", unlock);
-            document.removeEventListener("touchstart", unlock);
-            document.removeEventListener("keydown", unlock);
-          }
-          document.addEventListener("click", unlock, { once: true });
-          document.addEventListener("touchstart", unlock, { once: true });
-          document.addEventListener("keydown", unlock, { once: true });
+        playPromise.then(function () {
+          audioHasPlayed = true;
+          cleanupTouchListeners();
+        }).catch(function () {
+          // Autoplay block hone par touch listener active rahega
         });
       }
     }
 
-    function removeSplashAndPlaySound() {
-      playAppSound();
+    function handleUserInteraction() {
+      // Agar animation khatam ho chuki hai, tab touch karte hi sound play karein
+      if (animationEnded && !audioHasPlayed) {
+        triggerAudio();
+      }
+    }
+
+    function cleanupTouchListeners() {
+      document.removeEventListener("click", handleUserInteraction);
+      document.removeEventListener("touchstart", handleUserInteraction);
+      document.removeEventListener("pointerdown", handleUserInteraction);
+    }
+
+    // Global listeners: Website khulne ke baad bhi active rahenge jab tak audio play na ho
+    document.addEventListener("click", handleUserInteraction);
+    document.addEventListener("touchstart", handleUserInteraction);
+    document.addEventListener("pointerdown", handleUserInteraction);
+
+    function removeSplash() {
+      animationEnded = true;
+
+      // 1. Animation khatam hote hi direct audio try karein
+      triggerAudio();
+
+      // 2. Splash screen fade out
       if (splash && splash.parentNode) {
         splash.style.opacity = "0";
         setTimeout(function () {
@@ -999,18 +992,18 @@ img{ max-width:100%; display:block; }
         video.style.opacity = "1";
       });
 
-      var playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(removeSplashAndPlaySound);
+      var vPromise = video.play();
+      if (vPromise !== undefined) {
+        vPromise.catch(removeSplash);
       }
 
-      video.addEventListener("ended", removeSplashAndPlaySound);
-      video.addEventListener("error", removeSplashAndPlaySound);
+      video.addEventListener("ended", removeSplash);
+      video.addEventListener("error", removeSplash);
     }
 
     setTimeout(function () {
       if (splash && document.body.contains(splash)) {
-        removeSplashAndPlaySound();
+        removeSplash();
       }
     }, 8000);
   })();
