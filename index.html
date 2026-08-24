@@ -912,7 +912,7 @@ img{ max-width:100%; display:block; }
 </head>
 <body>
 
-  <!-- ============ PERFECT SMOOTH BLENDED SPLASH SCREEN ============ -->
+  <!-- ============ SEAMLESS SPLASH + EXACT END AUDIO TRIGGER ============ -->
 <div id="appSplashScreen" style="position:fixed;inset:0;background:#44855D;z-index:9999999;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:opacity 0.5s ease;">
   
   <div style="position:relative;width:100%;max-width:450px;display:flex;align-items:center;justify-content:center;">
@@ -933,8 +933,39 @@ img{ max-width:100%; display:block; }
   (function () {
     var video = document.getElementById("splashVideo");
     var splash = document.getElementById("appSplashScreen");
+    var soundPlayed = false;
 
-    function removeSplash() {
+    // Sound play karne ka function
+    function playAppSound() {
+      if (soundPlayed) return;
+      soundPlayed = true;
+
+      var audio = new Audio("welcome.mp3"); // www / public folder me rakhi audio file
+      audio.volume = 0.7;
+
+      var playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(function (err) {
+          console.log("Autoplay waiting for first user touch/tap");
+          
+          // Fallback: Agar browser policy block kare, toh screen par first touch hote hi play karein
+          function playOnTouch() {
+            audio.play();
+            document.removeEventListener("click", playOnTouch);
+            document.removeEventListener("touchstart", playOnTouch);
+          }
+          document.addEventListener("click", playOnTouch, { once: true });
+          document.addEventListener("touchstart", playOnTouch, { once: true });
+        });
+      }
+    }
+
+    // Splash screen hatane aur sound trigger karne ka function
+    function removeSplashAndPlaySound() {
+      // 1. Exact is moment par sound play hoga
+      playAppSound();
+
+      // 2. Splash screen smooth fade out hokar remove hogi
       if (splash && splash.parentNode) {
         splash.style.opacity = "0";
         setTimeout(function () {
@@ -945,47 +976,32 @@ img{ max-width:100%; display:block; }
 
     if (video) {
       video.muted = true;
-      
-      // Jaise hi video play hona shuru ho, tabhi use fade-in (visible) karo
-      video.addEventListener("playing", function() {
+
+      video.addEventListener("playing", function () {
         video.style.opacity = "1";
       });
 
       var playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.catch(function () {
-          removeSplash();
+          removeSplashAndPlaySound();
         });
       }
 
-      video.addEventListener("ended", removeSplash);
-      video.addEventListener("error", removeSplash);
+      // Jaise hi video khatam hogi -> theek usi moment par call hoga
+      video.addEventListener("ended", removeSplashAndPlaySound);
+      video.addEventListener("error", removeSplashAndPlaySound);
     }
 
-    setTimeout(removeSplash, 8000);
+    // Safety fallback (agar video load na ho)
+    setTimeout(function () {
+      if (splash && document.body.contains(splash)) {
+        removeSplashAndPlaySound();
+      }
+    }, 8000);
   })();
 </script>
 
-<!-- Splash Screen ka code upar hi rahega -->
-
-<script>
-  // Yeh script tab chalegi jab app load ho kar splash screen hat jayegi
-  window.addEventListener('load', function() {
-    // Thoda sa delay (jaise 7-8 seconds) taaki splash video khatam hone ke baad sound baje
-    setTimeout(function() {
-      if (!sessionStorage.getItem('welcomePlayed')) {
-        var audio = new Audio('welcome.mp3'); // Aapki audio file ka naam
-        audio.volume = 0.6;
-        
-        audio.play().then(function() {
-          sessionStorage.setItem('welcomePlayed', 'true');
-        }).catch(function(error) {
-          console.log("Audio play waiting for user touch");
-        });
-      }
-    }, 8000); // 8 seconds (apne animation ki length ke hisaab se adjust kar sakte hain)
-  });
-</script>
 
 <!-- ============ NOISE / GRAIN OVERLAY ============ -->
 <div class="grain" aria-hidden="true"></div>
