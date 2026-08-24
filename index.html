@@ -1013,12 +1013,12 @@ img{ max-width:100%; display:block; }
   })();
 </script>
 
-<!-- ============ TRANSPARENT CHROMA-KEY POPPER OVERLAY ============ -->
-<div id="popperOverlay" style="display:none;position:fixed;inset:0;z-index:9999998;pointer-events:none;align-items:center;justify-content:center;transition:opacity 0.4s ease;">
-  <!-- Video file hidden rahegi -->
-  <video id="popperVideo" src="popper.mp4" playsinline webkit-playsinline muted style="display:none;"></video>
-  <!-- Real-time transparent canvas -->
-  <canvas id="popperCanvas" style="width:100%;height:100%;object-fit:cover;pointer-events:none;"></canvas>
+<!-- ============ TRANSPARENT CHROMA-KEY POPPER OVERLAY (9:16 + AUDIO) ============ -->
+<div id="popperOverlay" style="display:none;position:fixed;inset:0;z-index:9999998;pointer-events:none;align-items:center;justify-content:center;transition:opacity 0.4s ease;background:transparent;">
+  <!-- Video element (Unmuted) -->
+  <video id="popperVideo" src="popper.mp4" playsinline webkit-playsinline preload="auto" style="display:none;"></video>
+  <!-- Canvas 9:16 Aspect Ratio Centered -->
+  <canvas id="popperCanvas" style="width:100%;height:100%;max-width:450px;max-height:100vh;object-fit:contain;pointer-events:none;display:block;"></canvas>
 </div>
 
 <!-- ============ NOISE / GRAIN OVERLAY ============ -->
@@ -2064,7 +2064,7 @@ img{ max-width:100%; display:block; }
   });
 
   /* ===========================================================
-     First Time Login Celebration Popper (Green Screen Removed)
+     First Time Login Celebration Popper (9:16 + Audio + Chroma)
      =========================================================== */
   function playFirstLoginCelebration() {
     var overlay = document.getElementById('popperOverlay');
@@ -2075,13 +2075,23 @@ img{ max-width:100%; display:block; }
     var ctx = canvas.getContext('2d', { willReadFrequently: true });
     var animationFrameId;
 
+    video.muted = false; // Audio enable kiya
+    video.volume = 0.8;
+
     overlay.style.display = 'flex';
     overlay.style.opacity = '1';
 
-    video.addEventListener('loadedmetadata', function () {
-      canvas.width = video.videoWidth || 1280;
-      canvas.height = video.videoHeight || 720;
-    });
+    function setCanvasDimensions() {
+      // 9:16 Portrait Canvas Resolution
+      canvas.width = video.videoWidth || 720;
+      canvas.height = video.videoHeight || 1280;
+    }
+
+    if (video.readyState >= 1) {
+      setCanvasDimensions();
+    } else {
+      video.addEventListener('loadedmetadata', setCanvasDimensions);
+    }
 
     // Real-time green screen removal
     function processFrame() {
@@ -2096,9 +2106,9 @@ img{ max-width:100%; display:block; }
         var g = frame.data[i * 4 + 1];
         var b = frame.data[i * 4 + 2];
 
-        // Green Screen Detection (removes pure/light green)
-        if (g > 80 && g > r * 1.2 && g > b * 1.2) {
-          frame.data[i * 4 + 3] = 0; // Alpha = 0 (Transparent)
+        // Green Screen Detection algorithm
+        if (g > 70 && g > r * 1.15 && g > b * 1.15) {
+          frame.data[i * 4 + 3] = 0; // Transparent
         }
       }
 
@@ -2115,13 +2125,20 @@ img{ max-width:100%; display:block; }
       overlay.style.opacity = '0';
       setTimeout(function () {
         overlay.style.display = 'none';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
       }, 400);
     });
 
-    video.play().catch(function (err) {
-      console.log("Popper play error:", err);
-      overlay.style.display = 'none';
-    });
+    // Sound ke sath play karein; agar policy block kare toh muted fallback karein
+    var playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(function () {
+        video.muted = true;
+        video.play().catch(function () {
+          overlay.style.display = 'none';
+        });
+      });
+    }
   }
 
   // ---- Google OAuth (Deep Link Support for Android App) ----
