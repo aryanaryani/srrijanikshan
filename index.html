@@ -1013,14 +1013,6 @@ img{ max-width:100%; display:block; }
   })();
 </script>
 
-<!-- ============ TRANSPARENT CHROMA-KEY POPPER OVERLAY (9:16 + AUDIO) ============ -->
-<div id="popperOverlay" style="display:none;position:fixed;inset:0;z-index:9999998;pointer-events:none;align-items:center;justify-content:center;transition:opacity 0.4s ease;background:transparent;">
-  <!-- Video element (Unmuted) -->
-  <video id="popperVideo" src="popper.mp4" playsinline webkit-playsinline preload="auto" style="display:none;"></video>
-  <!-- Canvas 9:16 Aspect Ratio Centered -->
-  <canvas id="popperCanvas" style="width:100%;height:100%;max-width:450px;max-height:100vh;object-fit:contain;pointer-events:none;display:block;"></canvas>
-</div>
-
 <!-- ============ NOISE / GRAIN OVERLAY ============ -->
 <div class="grain" aria-hidden="true"></div>
 
@@ -2043,103 +2035,15 @@ img{ max-width:100%; display:block; }
     renderAuthedUI(res.data.session ? res.data.session.user : null);
   });
 
-  // React to auth changes (covers OAuth redirect return too)
-  supabase.auth.onAuthStateChange(function (event, session) {
+// React to auth changes (covers OAuth redirect return too)
+  supabase.auth.onAuthStateChange(function (_event, session) {
     renderAuthedUI(session ? session.user : null);
-    if (session) {
-      closeModal();
-
-      // Check karein ki user ne is browser/app me pehli baar login kiya hai ya nahi
-      var hasCelebrated = localStorage.getItem("celebrated_first_login_" + session.user.id);
-      if (!hasCelebrated) {
-        localStorage.setItem("celebrated_first_login_" + session.user.id, "true");
-        // Thoda sa delay (500ms) taaki modal close hone ke baad clean popper animation play ho
-        setTimeout(playFirstLoginCelebration, 500);
-      }
-    }
+    if (session) closeModal();
   });
 
   logoutBtn.addEventListener("click", function () {
     supabase.auth.signOut();
   });
-
-  /* ===========================================================
-     First Time Login Celebration Popper (9:16 + Audio + Chroma)
-     =========================================================== */
-  function playFirstLoginCelebration() {
-    var overlay = document.getElementById('popperOverlay');
-    var video = document.getElementById('popperVideo');
-    var canvas = document.getElementById('popperCanvas');
-    if (!overlay || !video || !canvas) return;
-
-    var ctx = canvas.getContext('2d', { willReadFrequently: true });
-    var animationFrameId;
-
-    video.muted = false; // Audio enable kiya
-    video.volume = 0.8;
-
-    overlay.style.display = 'flex';
-    overlay.style.opacity = '1';
-
-    function setCanvasDimensions() {
-      // 9:16 Portrait Canvas Resolution
-      canvas.width = video.videoWidth || 720;
-      canvas.height = video.videoHeight || 1280;
-    }
-
-    if (video.readyState >= 1) {
-      setCanvasDimensions();
-    } else {
-      video.addEventListener('loadedmetadata', setCanvasDimensions);
-    }
-
-    // Real-time green screen removal
-    function processFrame() {
-      if (video.paused || video.ended) return;
-
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      var frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      var l = frame.data.length / 4;
-
-      for (var i = 0; i < l; i++) {
-        var r = frame.data[i * 4 + 0];
-        var g = frame.data[i * 4 + 1];
-        var b = frame.data[i * 4 + 2];
-
-        // Green Screen Detection algorithm
-        if (g > 70 && g > r * 1.15 && g > b * 1.15) {
-          frame.data[i * 4 + 3] = 0; // Transparent
-        }
-      }
-
-      ctx.putImageData(frame, 0, 0);
-      animationFrameId = requestAnimationFrame(processFrame);
-    }
-
-    video.addEventListener('play', function () {
-      processFrame();
-    });
-
-    video.addEventListener('ended', function () {
-      cancelAnimationFrame(animationFrameId);
-      overlay.style.opacity = '0';
-      setTimeout(function () {
-        overlay.style.display = 'none';
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }, 400);
-    });
-
-    // Sound ke sath play karein; agar policy block kare toh muted fallback karein
-    var playPromise = video.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(function () {
-        video.muted = true;
-        video.play().catch(function () {
-          overlay.style.display = 'none';
-        });
-      });
-    }
-  }
 
   // ---- Google OAuth (Deep Link Support for Android App) ----
   async function googleSignIn() {
