@@ -912,15 +912,15 @@ img{ max-width:100%; display:block; }
 </head>
 <body>
 
-  <!-- ============ LOCAL VIDEO SPLASH SCREEN (Grey Edge Removed) ============ -->
-<div id="appSplashScreen" style="position:fixed;inset:0;background:#ffffff;z-index:9999999;display:flex;align-items:center;justify-content:center;transition:opacity 0.4s ease;">
+  <!-- ============ PERFECT SEAMLESS GREEN SPLASH SCREEN ============ -->
+<div id="appSplashScreen" style="position:fixed;inset:0;background:#3B8657;z-index:9999999;display:flex;align-items:center;justify-content:center;transition:opacity 0.5s ease;">
   <video id="splashVideo"
          autoplay
          muted
          playsinline
          webkit-playsinline
          preload="auto"
-         style="width:90%;max-width:420px;height:auto;object-fit:contain;pointer-events:none;background:transparent;mix-blend-mode:multiply;filter:contrast(1.05) brightness(1.02);">
+         style="width:90%;max-width:420px;height:auto;object-fit:contain;pointer-events:none;outline:none;">
     <source src="splash.mp4" type="video/mp4">
   </video>
 </div>
@@ -935,21 +935,19 @@ img{ max-width:100%; display:block; }
         splash.style.opacity = "0";
         setTimeout(function () {
           if (splash && splash.parentNode) splash.remove();
-        }, 400);
+        }, 500);
       }
     }
 
     if (video) {
       video.muted = true;
-      video.play().catch(function () {
-        removeSplash();
-      });
-
+      video.play().catch(removeSplash);
       video.addEventListener("ended", removeSplash);
       video.addEventListener("error", removeSplash);
     }
 
-    setTimeout(removeSplash, 5000);
+    // Video duration ke hisaab se safety timeout (jaise yeh video ~7-8 seconds ki hai)
+    setTimeout(removeSplash, 8000);
   })();
 </script>
 
