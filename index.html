@@ -912,7 +912,7 @@ img{ max-width:100%; display:block; }
 </head>
 <body>
 
-  <!-- ============ FAILPROOF AUDIO & SPLASH CONTROLLER ============ -->
+  <!-- ============ STRICT TIMED SPLASH & SOUND CONTROLLER ============ -->
 <div id="appSplashScreen" style="position:fixed;inset:0;background:#44855D;z-index:9999999;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:opacity 0.5s ease;">
   <div style="position:relative;width:100%;max-width:450px;display:flex;align-items:center;justify-content:center;">
     <video id="splashVideo"
@@ -931,59 +931,61 @@ img{ max-width:100%; display:block; }
   (function () {
     var video = document.getElementById("splashVideo");
     var splash = document.getElementById("appSplashScreen");
-    
     var appAudio = new Audio("welcome.mp3");
     appAudio.preload = "auto";
     appAudio.volume = 0.7;
 
-    var animationEnded = false;
+    var splashIsActive = true; // Jab tak splash active hai, audio bilkul block rahega
     var audioHasPlayed = false;
 
-    function triggerAudio() {
-      if (audioHasPlayed) return;
-      
-      var playPromise = appAudio.play();
-      if (playPromise !== undefined) {
-        playPromise.then(function () {
+    // Sound bajane ka function
+    function playAudioAfterSplash() {
+      if (audioHasPlayed || splashIsActive) return; // Splash ke dauran block karega
+
+      var promise = appAudio.play();
+      if (promise !== undefined) {
+        promise.then(function() {
           audioHasPlayed = true;
-          cleanupTouchListeners();
-        }).catch(function () {
-          // Autoplay block hone par touch listener active rahega
+          detachTouchListeners();
+        }).catch(function() {
+          // Autoplay block hone par listeners active rahenge (website khulne ke baad ke touches ke liye)
         });
       }
     }
 
-    function handleUserInteraction() {
-      // Agar animation khatam ho chuki hai, tab touch karte hi sound play karein
-      if (animationEnded && !audioHasPlayed) {
-        triggerAudio();
+    function onPostSplashInteraction() {
+      // Sirf tab chalega jab splash khatam ho chuka ho
+      if (!splashIsActive && !audioHasPlayed) {
+        playAudioAfterSplash();
       }
     }
 
-    function cleanupTouchListeners() {
-      document.removeEventListener("click", handleUserInteraction);
-      document.removeEventListener("touchstart", handleUserInteraction);
-      document.removeEventListener("pointerdown", handleUserInteraction);
+    function detachTouchListeners() {
+      window.removeEventListener("click", onPostSplashInteraction);
+      window.removeEventListener("touchstart", onPostSplashInteraction);
+      window.removeEventListener("pointerdown", onPostSplashInteraction);
     }
 
-    // Global listeners: Website khulne ke baad bhi active rahenge jab tak audio play na ho
-    document.addEventListener("click", handleUserInteraction);
-    document.addEventListener("touchstart", handleUserInteraction);
-    document.addEventListener("pointerdown", handleUserInteraction);
+    // Interaction Listeners (jo sirf splashIsActive = false hone par hi kaam karenge)
+    window.addEventListener("click", onPostSplashInteraction);
+    window.addEventListener("touchstart", onPostSplashInteraction);
+    window.addEventListener("pointerdown", onPostSplashInteraction);
 
-    function removeSplash() {
-      animationEnded = true;
+    // Jab video end ho jaye
+    function removeSplashAndUnlockAudio() {
+      if (!splashIsActive) return;
+      splashIsActive = false; // Splash ko deactivate kiya
 
-      // 1. Animation khatam hote hi direct audio try karein
-      triggerAudio();
-
-      // 2. Splash screen fade out
+      // 1. Splash fade out
       if (splash && splash.parentNode) {
         splash.style.opacity = "0";
         setTimeout(function () {
           if (splash && splash.parentNode) splash.remove();
         }, 500);
       }
+
+      // 2. Ab audio play trigger karo
+      playAudioAfterSplash();
     }
 
     if (video) {
@@ -994,21 +996,30 @@ img{ max-width:100%; display:block; }
 
       var vPromise = video.play();
       if (vPromise !== undefined) {
-        vPromise.catch(removeSplash);
+        vPromise.catch(removeSplashAndUnlockAudio);
       }
 
-      video.addEventListener("ended", removeSplash);
-      video.addEventListener("error", removeSplash);
+      // Video end hote hi unlock hoga
+      video.addEventListener("ended", removeSplashAndUnlockAudio);
+      video.addEventListener("error", removeSplashAndUnlockAudio);
     }
 
+    // Safety fallback (agar video load na ho)
     setTimeout(function () {
-      if (splash && document.body.contains(splash)) {
-        removeSplash();
+      if (splashIsActive) {
+        removeSplashAndUnlockAudio();
       }
     }, 8000);
   })();
 </script>
 
+<!-- ============ TRANSPARENT CHROMA-KEY POPPER OVERLAY ============ -->
+<div id="popperOverlay" style="display:none;position:fixed;inset:0;z-index:9999998;pointer-events:none;align-items:center;justify-content:center;transition:opacity 0.4s ease;">
+  <!-- Video file hidden rahegi -->
+  <video id="popperVideo" src="popper.mp4" playsinline webkit-playsinline muted style="display:none;"></video>
+  <!-- Real-time transparent canvas -->
+  <canvas id="popperCanvas" style="width:100%;height:100%;object-fit:cover;pointer-events:none;"></canvas>
+</div>
 
 <!-- ============ NOISE / GRAIN OVERLAY ============ -->
 <div class="grain" aria-hidden="true"></div>
@@ -2033,14 +2044,85 @@ img{ max-width:100%; display:block; }
   });
 
   // React to auth changes (covers OAuth redirect return too)
-  supabase.auth.onAuthStateChange(function (_event, session) {
+  supabase.auth.onAuthStateChange(function (event, session) {
     renderAuthedUI(session ? session.user : null);
-    if (session) closeModal();
+    if (session) {
+      closeModal();
+
+      // Check karein ki user ne is browser/app me pehli baar login kiya hai ya nahi
+      var hasCelebrated = localStorage.getItem("celebrated_first_login_" + session.user.id);
+      if (!hasCelebrated) {
+        localStorage.setItem("celebrated_first_login_" + session.user.id, "true");
+        // Thoda sa delay (500ms) taaki modal close hone ke baad clean popper animation play ho
+        setTimeout(playFirstLoginCelebration, 500);
+      }
+    }
   });
 
   logoutBtn.addEventListener("click", function () {
     supabase.auth.signOut();
   });
+
+  /* ===========================================================
+     First Time Login Celebration Popper (Green Screen Removed)
+     =========================================================== */
+  function playFirstLoginCelebration() {
+    var overlay = document.getElementById('popperOverlay');
+    var video = document.getElementById('popperVideo');
+    var canvas = document.getElementById('popperCanvas');
+    if (!overlay || !video || !canvas) return;
+
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
+    var animationFrameId;
+
+    overlay.style.display = 'flex';
+    overlay.style.opacity = '1';
+
+    video.addEventListener('loadedmetadata', function () {
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+    });
+
+    // Real-time green screen removal
+    function processFrame() {
+      if (video.paused || video.ended) return;
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      var frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      var l = frame.data.length / 4;
+
+      for (var i = 0; i < l; i++) {
+        var r = frame.data[i * 4 + 0];
+        var g = frame.data[i * 4 + 1];
+        var b = frame.data[i * 4 + 2];
+
+        // Green Screen Detection (removes pure/light green)
+        if (g > 80 && g > r * 1.2 && g > b * 1.2) {
+          frame.data[i * 4 + 3] = 0; // Alpha = 0 (Transparent)
+        }
+      }
+
+      ctx.putImageData(frame, 0, 0);
+      animationFrameId = requestAnimationFrame(processFrame);
+    }
+
+    video.addEventListener('play', function () {
+      processFrame();
+    });
+
+    video.addEventListener('ended', function () {
+      cancelAnimationFrame(animationFrameId);
+      overlay.style.opacity = '0';
+      setTimeout(function () {
+        overlay.style.display = 'none';
+      }, 400);
+    });
+
+    video.play().catch(function (err) {
+      console.log("Popper play error:", err);
+      overlay.style.display = 'none';
+    });
+  }
 
   // ---- Google OAuth (Deep Link Support for Android App) ----
   async function googleSignIn() {
