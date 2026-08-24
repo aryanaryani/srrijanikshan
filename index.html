@@ -912,9 +912,8 @@ img{ max-width:100%; display:block; }
 </head>
 <body>
 
-  <!-- ============ SEAMLESS SPLASH + EXACT END AUDIO TRIGGER ============ -->
+  <!-- ============ WEBSITE + APP UNIVERSAL SPLASH & AUTO SOUND ============ -->
 <div id="appSplashScreen" style="position:fixed;inset:0;background:#44855D;z-index:9999999;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:opacity 0.5s ease;">
-  
   <div style="position:relative;width:100%;max-width:450px;display:flex;align-items:center;justify-content:center;">
     <video id="splashVideo"
            autoplay
@@ -926,7 +925,6 @@ img{ max-width:100%; display:block; }
       <source src="splash.mp4" type="video/mp4">
     </video>
   </div>
-
 </div>
 
 <script>
@@ -935,37 +933,58 @@ img{ max-width:100%; display:block; }
     var splash = document.getElementById("appSplashScreen");
     var soundPlayed = false;
 
-    // Sound play karne ka function
+    // Web Audio Context setup (Bypasses standard HTML5 audio block)
+    var AudioContext = window.AudioContext || window.webkitAudioContext;
+    var audioCtx = AudioContext ? new AudioContext() : null;
+    var audioBuffer = null;
+
+    // Pre-fetch and decode audio data instantly
+    if (audioCtx) {
+      fetch("welcome.mp3")
+        .then(function (res) { return res.arrayBuffer(); })
+        .then(function (data) { return audioCtx.decodeAudioData(data); })
+        .then(function (decoded) { audioBuffer = decoded; })
+        .catch(function () {});
+    }
+
     function playAppSound() {
       if (soundPlayed) return;
       soundPlayed = true;
 
-      var audio = new Audio("welcome.mp3"); // www / public folder me rakhi audio file
-      audio.volume = 0.7;
+      // 1. Try Web Audio Context buffer play
+      if (audioCtx && audioBuffer) {
+        if (audioCtx.state === "suspended") {
+          audioCtx.resume();
+        }
+        var source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+        source.start(0);
+        return;
+      }
 
+      // 2. Fallback to standard Audio tag
+      var audio = new Audio("welcome.mp3");
+      audio.volume = 0.7;
       var playPromise = audio.play();
       if (playPromise !== undefined) {
-        playPromise.catch(function (err) {
-          console.log("Autoplay waiting for first user touch/tap");
-          
-          // Fallback: Agar browser policy block kare, toh screen par first touch hote hi play karein
-          function playOnTouch() {
+        playPromise.catch(function () {
+          // Passive unlock on any early interaction
+          function unlock() {
             audio.play();
-            document.removeEventListener("click", playOnTouch);
-            document.removeEventListener("touchstart", playOnTouch);
+            document.removeEventListener("click", unlock);
+            document.removeEventListener("touchstart", unlock);
+            document.removeEventListener("keydown", unlock);
           }
-          document.addEventListener("click", playOnTouch, { once: true });
-          document.addEventListener("touchstart", playOnTouch, { once: true });
+          document.addEventListener("click", unlock, { once: true });
+          document.addEventListener("touchstart", unlock, { once: true });
+          document.addEventListener("keydown", unlock, { once: true });
         });
       }
     }
 
-    // Splash screen hatane aur sound trigger karne ka function
     function removeSplashAndPlaySound() {
-      // 1. Exact is moment par sound play hoga
       playAppSound();
-
-      // 2. Splash screen smooth fade out hokar remove hogi
       if (splash && splash.parentNode) {
         splash.style.opacity = "0";
         setTimeout(function () {
@@ -976,24 +995,19 @@ img{ max-width:100%; display:block; }
 
     if (video) {
       video.muted = true;
-
       video.addEventListener("playing", function () {
         video.style.opacity = "1";
       });
 
       var playPromise = video.play();
       if (playPromise !== undefined) {
-        playPromise.catch(function () {
-          removeSplashAndPlaySound();
-        });
+        playPromise.catch(removeSplashAndPlaySound);
       }
 
-      // Jaise hi video khatam hogi -> theek usi moment par call hoga
       video.addEventListener("ended", removeSplashAndPlaySound);
       video.addEventListener("error", removeSplashAndPlaySound);
     }
 
-    // Safety fallback (agar video load na ho)
     setTimeout(function () {
       if (splash && document.body.contains(splash)) {
         removeSplashAndPlaySound();
