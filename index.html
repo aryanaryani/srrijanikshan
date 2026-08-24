@@ -912,17 +912,21 @@ img{ max-width:100%; display:block; }
 </head>
 <body>
 
-  <!-- ============ PERFECT SEAMLESS GREEN SPLASH SCREEN ============ -->
-<div id="appSplashScreen" style="position:fixed;inset:0;background:#3B8657;z-index:9999999;display:flex;align-items:center;justify-content:center;transition:opacity 0.5s ease;">
-  <video id="splashVideo"
-         autoplay
-         muted
-         playsinline
-         webkit-playsinline
-         preload="auto"
-         style="width:90%;max-width:420px;height:auto;object-fit:contain;pointer-events:none;outline:none;">
-    <source src="splash.mp4" type="video/mp4">
-  </video>
+  <!-- ============ PERFECT SMOOTH BLENDED SPLASH SCREEN ============ -->
+<div id="appSplashScreen" style="position:fixed;inset:0;background:#44855D;z-index:9999999;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:opacity 0.5s ease;">
+  
+  <div style="position:relative;width:100%;max-width:450px;display:flex;align-items:center;justify-content:center;">
+    <video id="splashVideo"
+           autoplay
+           muted
+           playsinline
+           webkit-playsinline
+           preload="auto"
+           style="width:100%;height:auto;object-fit:contain;pointer-events:none;outline:none;opacity:0;transition:opacity 0.2s ease; -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%); mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);">
+      <source src="splash.mp4" type="video/mp4">
+    </video>
+  </div>
+
 </div>
 
 <script>
@@ -941,12 +945,23 @@ img{ max-width:100%; display:block; }
 
     if (video) {
       video.muted = true;
-      video.play().catch(removeSplash);
+      
+      // Jaise hi video play hona shuru ho, tabhi use fade-in (visible) karo
+      video.addEventListener("playing", function() {
+        video.style.opacity = "1";
+      });
+
+      var playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(function () {
+          removeSplash();
+        });
+      }
+
       video.addEventListener("ended", removeSplash);
       video.addEventListener("error", removeSplash);
     }
 
-    // Video duration ke hisaab se safety timeout (jaise yeh video ~7-8 seconds ki hai)
     setTimeout(removeSplash, 8000);
   })();
 </script>
