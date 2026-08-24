@@ -966,6 +966,27 @@ img{ max-width:100%; display:block; }
   })();
 </script>
 
+<!-- Splash Screen ka code upar hi rahega -->
+
+<script>
+  // Yeh script tab chalegi jab app load ho kar splash screen hat jayegi
+  window.addEventListener('load', function() {
+    // Thoda sa delay (jaise 7-8 seconds) taaki splash video khatam hone ke baad sound baje
+    setTimeout(function() {
+      if (!sessionStorage.getItem('welcomePlayed')) {
+        var audio = new Audio('welcome.mp3'); // Aapki audio file ka naam
+        audio.volume = 0.6;
+        
+        audio.play().then(function() {
+          sessionStorage.setItem('welcomePlayed', 'true');
+        }).catch(function(error) {
+          console.log("Audio play waiting for user touch");
+        });
+      }
+    }, 8000); // 8 seconds (apne animation ki length ke hisaab se adjust kar sakte hain)
+  });
+</script>
+
 <!-- ============ NOISE / GRAIN OVERLAY ============ -->
 <div class="grain" aria-hidden="true"></div>
 
