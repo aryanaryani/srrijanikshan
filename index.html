@@ -78,8 +78,8 @@
 }
 
 *,*::before,*::after{ box-sizing:border-box; }
-html{ scroll-behavior:smooth; }
-html,body{ margin:0; padding:0; }
+html{ scroll-behavior:smooth; overflow-x:hidden; }
+html,body{ margin:0; padding:0; max-width:100%; }
 
 /* Global overflow safety: CSS grid/flex children default to min-width:auto,
    which lets long text (button labels, headings) force a column wider than
@@ -808,6 +808,23 @@ img{ max-width:100%; display:block; }
   .revision-tool{ padding:20px 16px; gap:22px; }
 }
 
+/* ==========================================================================
+   Very small / low-cost phone screens (<=400px CSS width — chhote budget
+   touchscreen phones jinka viewport 320px se bhi kam ho sakta hai).
+   Do specific elements were measured (via real-device-width testing) to
+   bleed a few px past the viewport edge here and force a horizontal
+   scrollbar: the tilted hero "answer sheet" card (its rotate() transform
+   pushes its bounding box a hair wider than its container) and the
+   floating AI-orb's ambient glow (a large blurred halo bigger than the
+   button itself). Neither is visible as "missing" content — the fix just
+   keeps every element's true edge inside the screen so nothing ever
+   scrolls sideways or feels cut off, on any screen size. */
+@media (max-width: 400px){
+  .paper-card{ transform:none; }
+  .ai-orb-wrap{ right:14px; }
+  .ai-orb-glow{ inset:-14px; }
+}
+
   [hidden] { display: none !important; }
 
 </style>
@@ -841,8 +858,8 @@ img{ max-width:100%; display:block; }
   .ai-orb-label {
     position: absolute;
     top: -54px;
-    left: 50%;
-    transform: translateX(-50%);
+    right: 0;
+    max-width: calc(100vw - 24px);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1758,6 +1775,23 @@ img{ max-width:100%; display:block; }
 </div>
 
 <script>
+// ============ SAFETY NET: content kabhi permanently invisible na rahe ============
+// .reveal-up elements scroll me aane par JS se "in-view" class paate hain
+// (fade-in animation). Yeh chhota, poori tarah alag script kisi bhi wajah se
+// (slow network, kisi aur script ka error) agar wo JS kabhi na chale ya
+// atak jaaye, to bhi thodi der baad sab content force-visible kar deta hai —
+// taaki page kabhi "khaali/tuta hua" na dikhe.
+(function () {
+  function forceRevealAll() {
+    var els = document.querySelectorAll(".reveal-up:not(.in-view)");
+    for (var i = 0; i < els.length; i++) { els[i].classList.add("in-view"); }
+  }
+  window.addEventListener("load", function () { setTimeout(forceRevealAll, 3000); });
+  setTimeout(forceRevealAll, 6000);
+})();
+</script>
+
+<script>
 (function () {
   "use strict";
 
@@ -1857,7 +1891,46 @@ img{ max-width:100%; display:block; }
   // races (jaise "issued in the future" wala warning) aate the.
   var SUPABASE_URL = "https://tphrdecdljxaqogocuxw.supabase.co";
   var SUPABASE_ANON_KEY = "sb_publishable_ot4NbsQjhhSPdj8VB76kRQ_TNQL3IUy";
-  var supabase = window.supabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  var supabase;
+  try {
+    supabase = window.supabaseClient || (window.supabase && window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY));
+  } catch (e) {
+    console.error("Supabase init failed:", e);
+  }
+  if (!supabase) {
+    // FIX: slow/blocked mobile network -> supabase-js CDN script never loads ->
+    // window.supabase.createClient() throws -> (pehle) poora script yahin
+    // ruk jaata tha, isliye neeche wala scroll-reveal, nav, modals, sab kuch
+    // kabhi initialize hi nahi hote the aur pura page "uthal-puthal"/khaali
+    // dikhta tha. Ab ek safe dummy client use hote hain taaki baaki har cheez
+    // (jo seedhe server se link nahi hai) hamesha normally kaam kare — sirf
+    // login/payment jaisi cheezein tab tak disabled rahengi jab tak connection
+    // theek na ho.
+    var __noop = function(){};
+    // Generic chainable stub: kisi bhi method (.select/.eq/.order/.limit/wagerah)
+    // ko call karne par khud ko hi wapas deta hai, taaki chain kitni bhi lambi
+    // ho, kabhi "is not a function" error na aaye. Jab isse "await" kiya jaaye
+    // ya .then() lagaya jaaye, to safe empty result resolve ho jaata hai.
+    var __dummyQuery = new Proxy(function(){}, {
+      get: function (target, prop) {
+        if (prop === "then") { return function (resolve) { resolve({ data:[], error:{ message:"offline" } }); }; }
+        if (prop === "catch" || prop === "finally") { return function () { return __dummyQuery; }; }
+        return function () { return __dummyQuery; };
+      }
+    });
+    supabase = {
+      auth: {
+        getSession: function(){ return Promise.resolve({ data:{ session:null } }); },
+        getUser: function(){ return Promise.resolve({ data:{ user:null } }); },
+        onAuthStateChange: function(){ return { data:{ subscription:{ unsubscribe:__noop } } }; },
+        signInWithPassword: function(){ return Promise.resolve({ data:null, error:{ message:"Connection issue — कृपया internet जाँच कर फिर से try करें।" } }); },
+        signUp: function(){ return Promise.resolve({ data:null, error:{ message:"Connection issue — कृपया internet जाँच कर फिर से try करें।" } }); },
+        signOut: function(){ return Promise.resolve({}); },
+        signInWithOAuth: function(){ return Promise.resolve({ data:null, error:{ message:"Connection issue — कृपया internet जाँच कर फिर से try करें।" } }); }
+      },
+      from: function(){ return __dummyQuery; }
+    };
+  }
 
   // Referral link (aur kahin bhi shareable public link chahiye ho) hamesha isi
   // fixed production URL se banegi — window.location.origin use nahi karte,
