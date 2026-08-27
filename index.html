@@ -78,7 +78,7 @@
 }
 
 *,*::before,*::after{ box-sizing:border-box; }
-html{ scroll-behavior:smooth; overflow-x:hidden; }
+html{ scroll-behavior:smooth; overflow-x:hidden; overflow-y:visible; }
 html,body{ margin:0; padding:0; max-width:100%; }
 
 /* Global overflow safety: CSS grid/flex children default to min-width:auto,
@@ -106,6 +106,7 @@ body{
   line-height:2;
   -webkit-font-smoothing:antialiased;
   overflow-x:hidden;
+  overflow-y:visible;
   overflow-wrap:break-word;
 }
 
@@ -286,9 +287,9 @@ img{ max-width:100%; display:block; }
 .hero-cta-row{ display:flex; gap:14px; margin-top:28px; flex-wrap:wrap; }
 
 .hero-trust{ display:flex; gap:34px; margin-top:44px; }
-.trust-item{ display:flex; flex-direction:column; }
+.trust-item{ display:flex; flex-direction:column; flex:0 0 auto; }
 .trust-num{ font-family:var(--font-mono); font-weight:700; font-size:var(--fs-xl); color:var(--ink); }
-.trust-label{ font-size:var(--fs-xs); color:var(--ink-faint); margin-top:2px; }
+.trust-label{ font-size:var(--fs-xs); color:var(--ink-faint); margin-top:2px; white-space:nowrap; }
 
 /* --- signature element: annotated answer-sheet card --- */
 .hero-visual{ position:relative; }
@@ -785,7 +786,12 @@ img{ max-width:100%; display:block; }
   .hero{ padding:40px 0 20px; }
   .hero-cta-row{ flex-direction:column; }
   .hero-cta-row .btn{ width:100%; }
-  .hero-trust{ gap:22px; flex-wrap:wrap; }
+  /* Fix: flex+wrap let the 3 stats reflow unpredictably — on some widths
+     2 fit on row one and the 3rd stranded alone on row two with a big gap
+     next to it ("1,000+ / 6" then "रोज़" alone below). A 3-column grid
+     always keeps all three side by side, evenly spaced, at any width. */
+  .hero-trust{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .trust-label{ white-space:normal; }
   .process-list, .subject-grid, .pricing-grid, .footer-grid, .app-grid{ grid-template-columns:1fr; }
   .section{ padding:64px 0; }
   .referral-inner{ flex-direction:column; text-align:center; }
