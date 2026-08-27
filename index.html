@@ -181,7 +181,7 @@ img{ max-width:100%; display:block; }
    Header
    ========================================================================== */
 .site-header{
-  position:sticky; top:0; z-index:500;
+  position:-webkit-sticky; position:sticky; top:0; z-index:500;
   background:rgba(245,239,224,0.86);
   backdrop-filter:blur(10px);
   border-bottom:1px solid var(--line-soft);
@@ -587,6 +587,8 @@ img{ max-width:100%; display:block; }
 .referral-inner h3{ margin-bottom:4px; font-size:var(--fs-lg); color:var(--ink); }
 .referral-inner p{ margin:0; color:var(--ink-soft); font-size:var(--fs-base); }
 .referral-share-panel{ align-items:flex-end; }
+.referral-share-panel > div{ flex-wrap:wrap; justify-content:center; }
+.referral-share-panel .btn-share{ flex:1 1 auto; }
 
 /* ==========================================================================
    FAQ
@@ -800,12 +802,35 @@ img{ max-width:100%; display:block; }
    ========================================================================== */
 @media (max-width: 340px){
   .wrap{ padding:0 16px; }
+  /* Fix: brand-logo + header-actions together were still wide enough to
+     overflow the row at this width, so .header-inner's flex-wrap kept
+     bumping "फ्री शुरू करें" (and the hamburger) down onto a second line —
+     looking like the button "moves up/down" as you scroll/reflow. Shrink
+     the logo and tighten the gaps/button padding so everything fits on
+     one row again. */
+  .brand-logo{ height:40px; }
+  .header-inner{ gap:8px; }
+  .header-actions{ gap:6px; }
+  #navSignupBtn{ padding:8px 12px; font-size:var(--fs-xs); }
   /* fs-3xl / fs-2xl already scale fluidly via vw down to this breakpoint */
   .btn{ padding:12px 18px; font-size:var(--fs-base); }
   .btn-lg{ padding:14px 22px; font-size:var(--fs-base); }
   .section{ padding:48px 0; }
   .price-card, .subject-card, .process-step, .tier-card{ padding:20px 16px; }
   .revision-tool{ padding:20px 16px; gap:22px; }
+}
+
+/* Fix: .p-row's score-bar/score-number columns were fixed px (18px 1fr 60px
+   30px even at 720px width) and don't shrink at all as the viewport narrows.
+   Below ~400px that leaves very little room for the 1fr name column, so long
+   subject/topic names wrap across 3-4 lines and the whole hero/mock/prediction
+   card balloons in height instead of the layout getting more compact — the
+   "chota hone ki jagah lamba ho jaana" bug. Shrink the fixed columns further
+   and drop the name font-size a touch so the text has room to breathe. */
+@media (max-width: 400px){
+  .p-row{ grid-template-columns:15px 1fr 46px 26px; gap:6px; }
+  .p-name{ font-size:var(--fs-sm); }
+  .p-score{ font-size:var(--fs-sm); }
 }
 
 /* ==========================================================================
@@ -851,8 +876,16 @@ img{ max-width:100%; display:block; }
   .ai-orb-wrap:focus-within {
     opacity: 1;
   }
+  /* Fix: this used to trigger at 1260px, which hides the "AI Assistant"
+     label on essentially every phone, tablet, and most laptops — it only
+     ever showed on very wide desktop monitors. Shrinking the orb itself
+     (so it takes less room over content) still makes sense across that
+     whole range, but hiding the label is only needed once real estate
+     gets tight, so that part now waits until 480px. */
   @media (max-width: 1260px) {
     .ai-orb-wrap { width: 52px; height: 52px; bottom: 18px; right: 14px; }
+  }
+  @media (max-width: 480px) {
     .ai-orb-label { display: none; }
   }
   .ai-orb-label {
@@ -1022,10 +1055,10 @@ img{ max-width:100%; display:block; }
     50% { transform: translateY(-7px); }
   }
 
-  @media (max-width: 720px) {
-    .ai-orb-wrap { width: 52px; height: 52px; bottom: 20px; right: 20px; }
-    .ai-orb-label { display: none; } /* Mobile par text label chhupa diya taaki clutter na ho */
-  }
+  /* (bottom/right values already set by the 1260px rule above — this used
+     to duplicate that rule with slightly different numbers, which is what
+     made the orb's position/label visibility inconsistent between 480px
+     and 1260px depending on which rule happened to win.) */
 </style>
 <link rel="icon" type="image/png" href="logo.png">
 </head>
