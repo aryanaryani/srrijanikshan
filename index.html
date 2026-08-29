@@ -2708,12 +2708,22 @@ img{ max-width:100%; display:block; }
   function hasActiveFreeTrial(plan) {
     return !!(plan && plan.premium_free_until && new Date(plan.premium_free_until) > new Date());
   }
+  // 1-Day Revision (Last-Minute) Pack active ho to mock test bhi full unlock ho jaana chahiye
+  // (sabhi subjects + full question count) — jab tak pack valid hai
+  function hasActiveLastMinute(plan) {
+    return !!(plan && plan.last_minute_expires_at && new Date(plan.last_minute_expires_at) > new Date());
+  }
   function isEffectivelyPaidAll(plan) {
     return plan.subscription_status === "PAID_ALL" || hasActiveFreeTrial(plan);
   }
+  // Mock test ke liye "full access" — PAID_ALL/free-trial ke alawa active
+  // Last-Minute Pack wale bhi is bucket me aate hain
+  function hasFullMockAccess(plan) {
+    return isEffectivelyPaidAll(plan) || hasActiveLastMinute(plan);
+  }
   function getAllowedMockSubjects() {
     var plan = getUserPlan();
-    if (isEffectivelyPaidAll(plan)) return ALL_MOCK_SUBJECTS;
+    if (hasFullMockAccess(plan)) return ALL_MOCK_SUBJECTS;
     if (plan.subscription_status === "PAID_SINGLE") {
       var slug = resolveSubjectSlug(plan.subject_access);
       var filtered = ALL_MOCK_SUBJECTS.filter(function (s) { return s.value === slug; });
@@ -2760,7 +2770,7 @@ img{ max-width:100%; display:block; }
   function showStartScreen() {
     var allowedSubjects = getAllowedMockSubjects();
     var plan = getUserPlan();
-    var isFree = !isEffectivelyPaidAll(plan) && plan.subscription_status !== "PAID_SINGLE";
+    var isFree = !hasFullMockAccess(plan) && plan.subscription_status !== "PAID_SINGLE";
     var isSingleLocked = plan.subscription_status === "PAID_SINGLE" && allowedSubjects.length === 1;
 
     var subjectOptionsHtml = allowedSubjects.map(function (s) {
