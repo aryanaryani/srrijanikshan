@@ -182,11 +182,11 @@ img{ max-width:100%; display:block; }
    Header
    ========================================================================== */
 .site-header{
-  position:-webkit-sticky; position:sticky; top:0; z-index:500;
+  position:fixed; top:0; left:0; right:0; width:100%; z-index:500;
   background:rgba(245,239,224,0.86);
-  backdrop-filter:blur(10px);
   border-bottom:1px solid var(--line-soft);
   transition:box-shadow .3s;
+  isolation:isolate;
 }
 .header-inner{
   display:flex; align-items:center; justify-content:space-between;
@@ -1856,6 +1856,16 @@ img{ max-width:100%; display:block; }
   /* ===========================================================
      Header shadow on scroll
      =========================================================== */
+
+    function adjustHeaderSpacing() {
+    var h = document.getElementById("siteHeader");
+    var main = document.getElementById("top");
+    if (h && main) { main.style.paddingTop = h.offsetHeight + "px"; }
+  }
+  adjustHeaderSpacing();
+  window.addEventListener("resize", adjustHeaderSpacing);
+  window.addEventListener("load", adjustHeaderSpacing);
+
   var header = document.getElementById("siteHeader");
   window.addEventListener("scroll", function () {
     if (window.scrollY > 8) {
